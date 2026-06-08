@@ -13,19 +13,23 @@ export async function GET(request: NextRequest) {
   const type      = searchParams.get('type') as 'read' | 'download' | 'tip' | 'series' | null;
 
   if (!reference || !uid || !type) {
-    return NextResponse.redirect(new URL('/books?payment=error', request.url));
+    return NextResponse.redirect(new URL('/payment/error?reason=error', request.url));
   }
 
   const getErrorRedirectUrl = (reason: 'failed' | 'error') => {
+    const bookId = searchParams.get('bookId') || '';
+    const seriesId = searchParams.get('seriesId') || '';
+    
     if (type === 'tip') {
+      // Tips redirect back to tip page for retry
       return new URL(`/tip?payment=${reason}`, request.url);
     }
     if (type === 'series') {
-      const seriesId = searchParams.get('seriesId') || '';
-      return new URL(`/series/${seriesId}?payment=${reason}`, request.url);
+      // Series purchases redirect to error page
+      return new URL(`/payment/error?reason=${reason}&type=${type}&seriesId=${seriesId}`, request.url);
     }
-    const bookId = searchParams.get('bookId') || '';
-    return new URL(`/books/${bookId}?payment=${reason}`, request.url);
+    // Book purchases redirect to error page
+    return new URL(`/payment/error?reason=${reason}&type=${type}&bookId=${bookId}`, request.url);
   };
 
   try {
@@ -83,7 +87,7 @@ export async function GET(request: NextRequest) {
         purchasedAt: FieldValue.serverTimestamp(),
       });
 
-      return NextResponse.redirect(new URL(`/series/${seriesId}?payment=success`, request.url));
+      return NextResponse.redirect(new URL(`/payment/success?seriesId=${seriesId}&type=series`, request.url));
     } else {
       const bookId = searchParams.get('bookId');
       if (!bookId) return NextResponse.redirect(getErrorRedirectUrl('error'));
@@ -107,7 +111,7 @@ export async function GET(request: NextRequest) {
         purchasedAt: FieldValue.serverTimestamp(),
       });
 
-      return NextResponse.redirect(new URL(`/books/${bookId}?payment=success`, request.url));
+      return NextResponse.redirect(new URL(`/payment/success?bookId=${bookId}&type=${type}`, request.url));
     }
   } catch {
     return NextResponse.redirect(getErrorRedirectUrl('error'));
