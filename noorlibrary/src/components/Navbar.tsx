@@ -75,6 +75,11 @@ export default function Navbar() {
                 </Link>
               </li>
               <li>
+                <Link href="/books?tab=series" className={`${styles.navLink} ${isActive('/books')}`}>
+                  Series
+                </Link>
+              </li>
+              <li>
                 <Link href="/tip" className={`${styles.navLink} ${isActive('/tip')}`}>
                   Support Library
                 </Link>
