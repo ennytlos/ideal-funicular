@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import React, { useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useApp, Episode } from '../../../context/AppContext';
 import AuthModal from '../../../components/AuthModal';
@@ -14,18 +14,11 @@ const ReaderModal = dynamic(() => import('../../../components/ReaderModal'), {
 export default function SeriesDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { series, user, purchasedSeries, purchaseSeries } = useApp();
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeEpisode, setActiveEpisode] = useState<Episode | null>(null);
-  const paymentNotice = searchParams.get('payment') as 'success' | 'failed' | 'error' | null;
-
-  useEffect(() => {
-    if (!paymentNotice) return;
-    router.replace(window.location.pathname, { scroll: false });
-  }, [paymentNotice, router]);
 
   const seriesId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
   const s = series.find(b => b.id === seriesId);
@@ -91,17 +84,6 @@ export default function SeriesDetailsPage() {
         >
           &larr; Back to Catalog
         </button>
-
-        {paymentNotice === 'success' && (
-          <div style={{ background: 'rgba(34, 197, 94, 0.1)', color: '#166534', padding: '1rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
-            <strong>Payment Successful!</strong> The series has been added to your library.
-          </div>
-        )}
-        {paymentNotice === 'failed' && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#991b1b', padding: '1rem', borderRadius: '8px', marginBottom: '2rem', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-            <strong>Payment Failed.</strong> Your transaction could not be completed.
-          </div>
-        )}
 
         <div className="responsive-book-details">
           {/* Cover Column */}
