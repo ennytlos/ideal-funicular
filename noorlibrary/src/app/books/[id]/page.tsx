@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import React, { useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useApp } from '../../../context/AppContext';
 import AuthModal from '../../../components/AuthModal';
@@ -16,18 +16,11 @@ const ReaderModal = dynamic(() => import('../../../components/ReaderModal'), {
 export default function BookDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { books, user, purchasedBooks, downloadedBooks, purchaseBook } = useApp();
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isReaderOpen, setIsReaderOpen] = useState(false);
-  const paymentNotice = searchParams.get('payment') as 'success' | 'failed' | 'error' | null;
-
-  useEffect(() => {
-    if (!paymentNotice) return;
-    router.replace(window.location.pathname, { scroll: false });
-  }, [paymentNotice, router]);
 
   const handleShare = async () => {
     if (!book) return;
@@ -217,22 +210,6 @@ export default function BookDetailsPage() {
         >
           &larr; Back to Catalog
         </button>
-
-        {paymentNotice === 'success' && (
-          <div className="alert alert-success">
-            <strong>Payment Successful!</strong> The book has been added to your library.
-          </div>
-        )}
-        {paymentNotice === 'failed' && (
-          <div className="alert alert-danger">
-            <strong>Payment Failed.</strong> Please check your payment details or try again.
-          </div>
-        )}
-        {paymentNotice === 'error' && (
-          <div className="alert alert-danger">
-            <strong>Payment Error.</strong> An unexpected error occurred during verification.
-          </div>
-        )}
 
         <div className="responsive-book-details">
           
