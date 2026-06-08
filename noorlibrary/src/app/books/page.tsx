@@ -1,13 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useApp } from '../../context/AppContext';
 import BookCard from '../../components/BookCard';
 import SeriesCard from '../../components/SeriesCard';
 
 export default function BooksPage() {
   const { books, series } = useApp();
-  const [activeTab, setActiveTab] = useState<'books' | 'series'>('books');
+  const searchParams = useSearchParams();
+  const initialTab = searchParams?.get('tab') === 'series' ? 'series' : 'books';
+  const [activeTab, setActiveTab] = useState<'books' | 'series'>(initialTab as 'books' | 'series');
+
+  useEffect(() => {
+    const tab = searchParams?.get('tab');
+    if (tab === 'series') setActiveTab('series');
+    if (tab === 'books') setActiveTab('books');
+  }, [searchParams]);
 
   return (
     <div className="container" style={{ paddingTop: '8rem', paddingBottom: '4rem', flex: 1 }}>
