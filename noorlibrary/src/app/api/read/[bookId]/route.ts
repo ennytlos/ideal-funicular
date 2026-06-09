@@ -15,8 +15,9 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const seriesId = searchParams.get('seriesId');
 
-  let contentType: 'json' | 'pdf' = 'pdf';
+  let contentType: 'plaintext' | 'pdf' | 'json' = 'pdf';
   let filePath = '';
+  let plainTextContent = '';
   let title = '';
   let isSecure = true;
 
@@ -29,8 +30,9 @@ export async function GET(
     const episode = (seriesData.episodes || []).find((e: { id?: string }) => e.id === bookId);
     if (!episode) return NextResponse.json({ error: 'Episode not found' }, { status: 404 });
 
-    contentType = episode.contentType || 'pdf';
-    filePath = contentType === 'json' ? (episode.jsonPath ?? '') : (episode.pdfPath ?? '');
+    contentType = episode.contentType || 'plaintext';
+    filePath = contentType === 'pdf' ? (episode.pdfPath ?? '') : '';
+    plainTextContent = contentType === 'plaintext' ? (episode.plainTextContent ?? '') : '';
     title = episode.title;
     isSecure = episode.isSecure !== false;
 
@@ -98,9 +100,21 @@ export async function GET(
     }
   }
 
-  if (!filePath) return NextResponse.json({ error: 'No content available' }, { status: 404 });
+  if (!filePath && contentType !== 'plaintext') return NextResponse.json({ error: 'No content available' }, { status: 404 });
 
-  // 3. For PDF files, return direct URL (signed if secure, plain if insecure) to client.
+  // 3. For plaintext, return content directly from Firestore
+  if (contentType === 'plaintext') {
+    // Parse double enters as page breaks to create chapter structure
+    const pages = plainTextContent.split('\n\n').filter(p => p.trim());
+    return NextResponse.json([
+      {
+        title: title,
+        pages: pages
+      }
+    ]);
+  }
+
+  // 4. For PDF files, return direct URL (signed if secure, plain if insecure) to client.
   // This bypasses Vercel Serverless Function response size limits.
   // Requires CORS configured on the Bunny CDN Pull Zone (Access-Control-Allow-Origin: *).
   if (contentType === 'pdf') {
@@ -108,43 +122,5 @@ export async function GET(
       ? await getSignedUrl(filePath, 3600)
       : getCdnUrl(filePath);
     return NextResponse.json({ url: signedUrl });
-  }
-
-  // 4. Generate signed URL (1 hour expiry) for JSON text books.
-  const signedUrl = isSecure 
-    ? await getSignedUrl(filePath, 3600)
-    : getCdnUrl(filePath);
-
-  // 5. Fetch from CDN on server-side to stream back
-  try {
-    const pdfResponse = await fetch(signedUrl);
-    if (!pdfResponse.ok) {
-      return NextResponse.json({ error: 'Failed to retrieve book content from CDN' }, { status: pdfResponse.status });
-    }
-
-    const isDownload = searchParams.get('download') === 'true';
-
-    const headers = new Headers();
-    if (contentType === 'json') {
-      headers.set('Content-Type', 'application/json');
-    } else {
-      headers.set('Content-Type', 'application/pdf');
-    }
-
-    if (isDownload) {
-      const safeTitle = (title ?? bookId).replace(/[^a-zA-Z0-9-_]/g, '_');
-      const ext = contentType === 'json' ? 'json' : 'pdf';
-      headers.set('Content-Disposition', `attachment; filename="${safeTitle}.${ext}"`);
-    } else {
-      headers.set('Content-Disposition', 'inline');
-    }
-
-    return new NextResponse(pdfResponse.body, {
-      status: 200,
-      headers,
-    });
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: 'Failed to stream book content: ' + errorMessage }, { status: 500 });
   }
 }
