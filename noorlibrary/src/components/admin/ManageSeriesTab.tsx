@@ -55,10 +55,9 @@ export default function ManageSeriesTab() {
   const [activeSeries, setActiveSeries] = useState<Series | null>(null);
   const [editingEpisodeId, setEditingEpisodeId] = useState<string | null>(null);
   const [newEpisode, setNewEpisode] = useState<Partial<Episode>>({
-    title: '', episodeNumber: 1, contentType: 'json', pdfPath: '', jsonPath: '', isSecure: true
+    title: '', episodeNumber: 1, contentType: 'plaintext', pdfPath: '', plainTextContent: '', isSecure: true
   });
   const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [jsonFile, setJsonFile] = useState<File | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -127,9 +126,8 @@ export default function ManageSeriesTab() {
 
   const openAddEpisodeModal = () => {
     setEditingEpisodeId(null);
-    setNewEpisode({ title: '', episodeNumber: (activeSeries?.episodes?.length || 0) + 1, contentType: 'json', pdfPath: '', jsonPath: '', isSecure: true });
+    setNewEpisode({ title: '', episodeNumber: (activeSeries?.episodes?.length || 0) + 1, contentType: 'plaintext', pdfPath: '', plainTextContent: '', isSecure: true });
     setPdfFile(null);
-    setJsonFile(null);
     setIsEpisodeModalOpen(true);
   };
 
@@ -137,7 +135,6 @@ export default function ManageSeriesTab() {
     setEditingEpisodeId(ep.id);
     setNewEpisode({ ...ep, isSecure: ep.isSecure !== false });
     setPdfFile(null);
-    setJsonFile(null);
     setIsEpisodeModalOpen(true);
   };
 
@@ -147,7 +144,7 @@ export default function ManageSeriesTab() {
     setIsSaving(true);
     try {
       let finalPdfPath = newEpisode.pdfPath;
-      let finalJsonPath = newEpisode.jsonPath;
+      let finalPlainTextContent = newEpisode.plainTextContent;
       
       if (newEpisode.contentType === 'pdf' && pdfFile) {
         const formData = new FormData();
@@ -156,22 +153,15 @@ export default function ManageSeriesTab() {
         const res = await fetch('/api/upload', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.path) finalPdfPath = data.path;
-      } else if (newEpisode.contentType === 'json' && jsonFile) {
-        const formData = new FormData();
-        formData.append('file', jsonFile);
-        formData.append('type', 'json');
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (data.path) finalJsonPath = data.path;
       }
 
       const ep: Episode = {
         id: editingEpisodeId || Date.now().toString(),
         title: newEpisode.title || `Episode ${newEpisode.episodeNumber}`,
         episodeNumber: Number(newEpisode.episodeNumber) || 1,
-        contentType: newEpisode.contentType || 'json',
+        contentType: newEpisode.contentType || 'plaintext',
         pdfPath: finalPdfPath || '',
-        jsonPath: finalJsonPath || '',
+        plainTextContent: finalPlainTextContent || '',
         isPublished: true,
         isSecure: newEpisode.isSecure !== false,
       };
@@ -338,8 +328,8 @@ export default function ManageSeriesTab() {
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="episode-format">Format</label>
-                <select id="episode-format" className="form-input" value={newEpisode.contentType} onChange={e => setNewEpisode({...newEpisode, contentType: e.target.value as 'pdf'|'json'})}>
-                  <option value="json">JSON Text</option>
+                <select id="episode-format" className="form-input" value={newEpisode.contentType} onChange={e => setNewEpisode({...newEpisode, contentType: e.target.value as 'pdf'|'plaintext'})}>
+                  <option value="plaintext">Plain Text</option>
                   <option value="pdf">PDF Document</option>
                 </select>
               </div>
@@ -352,16 +342,18 @@ export default function ManageSeriesTab() {
                   </label>
                 </div>
               </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor={newEpisode.contentType === 'pdf' ? 'episode-pdf' : 'episode-json'}>Upload Content</label>
-                {newEpisode.contentType === 'pdf' ? (
+              {newEpisode.contentType === 'plaintext' ? (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="episode-plaintext">Episode Content</label>
+                  <textarea id="episode-plaintext" className="form-input" rows={10} placeholder="Paste your episode content here. Use double enters to create page breaks." value={newEpisode.plainTextContent || ''} onChange={e => setNewEpisode({...newEpisode, plainTextContent: e.target.value})} />
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="episode-pdf">Upload PDF</label>
                   <input id="episode-pdf" type="file" accept="application/pdf" className="form-input" onChange={e => e.target.files && setPdfFile(e.target.files[0])} />
-                ) : (
-                  <input id="episode-json" type="file" accept=".json,application/json" className="form-input" onChange={e => e.target.files && setJsonFile(e.target.files[0])} />
-                )}
-                {newEpisode.pdfPath && newEpisode.contentType === 'pdf' && <p>Current: {newEpisode.pdfPath}</p>}
-                {newEpisode.jsonPath && newEpisode.contentType === 'json' && <p>Current: {newEpisode.jsonPath}</p>}
-              </div>
+                  {newEpisode.pdfPath && <p>Current: {newEpisode.pdfPath}</p>}
+                </div>
+              )}
               <button type="submit" className="btn btn-primary" disabled={isSaving}>{isSaving ? 'Uploading & Saving...' : 'Save Episode'}</button>
             </form>
           </div>
