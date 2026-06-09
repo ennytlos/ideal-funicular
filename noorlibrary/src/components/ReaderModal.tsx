@@ -34,7 +34,7 @@ const DEFAULT_CHAPTERS: Chapter[] = [
 ];
 
 export default function ReaderModal({ book, seriesId, onClose }: ReaderModalProps) {
-  const isTextBook = book.contentType === 'json';
+  const isTextBook = book.contentType === 'plaintext';
   const isBook = (b: Book | Episode): b is Book => (b as Book).author !== undefined;
   const [chapters, setChapters] = useState<Chapter[]>(DEFAULT_CHAPTERS);
 
