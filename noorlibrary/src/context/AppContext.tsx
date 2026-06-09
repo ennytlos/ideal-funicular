@@ -68,9 +68,9 @@ export interface Episode {
   id: string;
   title: string;
   episodeNumber: number;
-  contentType: 'pdf' | 'json';
+  contentType: 'pdf' | 'plaintext';
   pdfPath?: string;
-  jsonPath?: string;
+  plainTextContent?: string;
   isPublished?: boolean;
   isSecure?: boolean;
   createdAt?: number;
