@@ -6,8 +6,19 @@ const nextConfig: NextConfig = {
       {
         source: "/api/:path*",
         headers: [
-          { key: "Access-Control-Allow-Methods", value: "GET,DELETE,PATCH,POST,PUT" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET,DELETE,PATCH,POST,PUT,OPTIONS" },
           { key: "Access-Control-Allow-Headers", value: "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization" },
+          { key: "Access-Control-Max-Age", value: "3600" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        ]
+      },
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
         ]
       }
     ]
