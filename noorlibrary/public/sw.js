@@ -52,13 +52,52 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          return caches.match(request);
+          return caches.match(request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            // Return 503 Service Unavailable if no cache and network fails
+            return new Response(
+              JSON.stringify({ error: 'Service Unavailable' }),
+              { status: 503, headers: { 'Content-Type': 'application/json' } }
+            );
+          });
         })
     );
     return;
   }
 
-  // 2. Handle static page / assets caching with Network-First strategy
+  // 2. Handle auth routes - bypass service worker, let browser handle them directly
+  if (url.pathname.includes('/auth/') || url.search.includes('auth=')) {
+    return;
+  }
+
+  // 3. Handle API calls - Network-First with proper error handling
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Always return the response, whether it's success or error
+          return response;
+        })
+        .catch(() => {
+          // If network fails, try to get cached response
+          return caches.match(request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            // Return 503 if no cache available
+            return new Response(
+              JSON.stringify({ error: 'Service Unavailable' }),
+              { status: 503, headers: { 'Content-Type': 'application/json' } }
+            );
+          });
+        })
+    );
+    return;
+  }
+
+  // 4. Handle static page / assets caching with Network-First strategy
   if (request.method === 'GET') {
     event.respondWith(
       fetch(request)
@@ -79,8 +118,24 @@ self.addEventListener('fetch', (event) => {
             if (request.mode === 'navigate') {
               return caches.match('/');
             }
+            // Return 503 for any failed resource
+            return new Response(
+              'Service Unavailable',
+              { status: 503, headers: { 'Content-Type': 'text/plain' } }
+            );
           });
         })
     );
+    return;
   }
+
+  // 5. For non-GET requests (POST, PUT, DELETE, etc.), always use network
+  event.respondWith(
+    fetch(request).catch(() => {
+      return new Response(
+        JSON.stringify({ error: 'Network error - request failed' }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
+      );
+    })
+  );
 });
