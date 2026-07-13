@@ -60,7 +60,7 @@ const CALC_METHODS = [
   { id: 13, name: "Diyanet İşleri Başkanlığı (Turkey)" },
 ];
 
-const ADHAN_AUDIO_URL = "https://www.islamcan.com/audio/adhan/makkah.mp3";
+const ADHAN_AUDIO_URL = "https://www.islamcan.com/audio/adhan/azan1.mp3";
 const CHIME_AUDIO_URL = "https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav";
 
 export default function SolatAndQiyamPortal() {
