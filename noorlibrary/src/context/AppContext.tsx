@@ -376,16 +376,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Register Service Worker for offline PWA support
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      const handleRegister = () => {
-        navigator.serviceWorker.register('/sw.js').then(
-          (reg) => {
-            console.log('Noor ServiceWorker registered with scope:', reg.scope);
-          },
-          (err) => {
-            console.warn('Noor ServiceWorker registration failed:', err);
-          }
-        );
+      const handleRegister = async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+          console.log('Noor ServiceWorker registered with scope:', reg.scope);
+          
+          // Handle updates
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'activated') {
+                  console.log('Service Worker updated');
+                }
+              });
+            }
+          });
+        } catch (err) {
+          console.warn('Noor ServiceWorker registration failed:', err);
+        }
       };
+      
       if (document.readyState === 'complete') {
         handleRegister();
       } else {
