@@ -39,7 +39,11 @@ export async function GET() {
           : data.createdAt
       };
     });
-    return NextResponse.json(reminders);
+    return NextResponse.json(reminders, {
+      headers: {
+        'Cache-Control': 'public, max-age=600, s-maxage=600',
+      },
+    });
   } catch (error: any) {
     try {
       const snap = await adminDb.collection('short_reads').get();
@@ -53,7 +57,11 @@ export async function GET() {
             : data.createdAt
         };
       });
-      return NextResponse.json(reminders);
+      return NextResponse.json(reminders, {
+        headers: {
+          'Cache-Control': 'public, max-age=600, s-maxage=600',
+        },
+      });
     } catch (innerError: any) {
       return NextResponse.json({ error: 'Failed to fetch reminders: ' + innerError.message }, { status: 500 });
     }
