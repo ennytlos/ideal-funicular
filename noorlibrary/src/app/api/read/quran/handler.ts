@@ -9,7 +9,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Quran metadata index not found' }, { status: 404 });
     }
     const data = metaDoc.data()!;
-    return NextResponse.json(data.surahs || []);
+    return NextResponse.json(data.surahs || [], {
+      headers: {
+        'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+      },
+    });
   } catch (error) {
     console.error('Error fetching Quran metadata:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
