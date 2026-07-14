@@ -4,7 +4,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '../../../../../lib/firebase-admin';
-import { getSignedUrl } from '../../../../../lib/bunny';
 
 export async function GET(
   request: NextRequest,
@@ -25,29 +24,14 @@ export async function GET(
       return NextResponse.redirect(new URL('/noor_logo.png', request.url));
     }
 
-    // Check if it's a Bunny CDN URL — needs token signing
-    if (coverUrl.includes('b-cdn.net') || coverUrl.includes('bunnycdn.com') || !coverUrl.startsWith('http')) {
-      let path = coverUrl;
-      if (coverUrl.startsWith('http')) {
-        const urlObj = new URL(coverUrl);
-        path = urlObj.pathname.substring(1); // remove leading slash
-      }
-
-      const signedUrl = await getSignedUrl(path, 3600);
-      const res = await fetch(signedUrl);
-
-      if (!res.ok) {
-        return NextResponse.redirect(new URL('/noor_logo.png', request.url));
-      }
-
-      const headers = new Headers();
-      headers.set('Content-Type', res.headers.get('Content-Type') || 'image/jpeg');
-      headers.set('Cache-Control', 'public, max-age=86400'); // Cache for 24h
-      return new NextResponse(res.body, { headers });
+    let destination = coverUrl;
+    if (!coverUrl.startsWith('http')) {
+      const cdnHost = process.env.BUNNY_CDN_HOSTNAME || 'noorlibrary.b-cdn.net';
+      destination = `https://${cdnHost}/${coverUrl.startsWith('/') ? coverUrl.substring(1) : coverUrl}`;
     }
 
-    // Standard external URL — redirect directly
-    return NextResponse.redirect(new URL(coverUrl, request.url));
+    // Redirect directly to the public URL (bypassing Vercel streaming/bandwidth)
+    return NextResponse.redirect(new URL(destination, request.url));
   } catch {
     return NextResponse.redirect(new URL('/noor_logo.png', request.url));
   }
