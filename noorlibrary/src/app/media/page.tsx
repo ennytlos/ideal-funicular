@@ -5,7 +5,7 @@ import { useApp } from '../../context/AppContext';
 import Navbar from '../../components/Navbar';
 import AuthModal from '../../components/AuthModal';
 import { db } from '../../lib/firebase';
-import { doc, collection, onSnapshot, updateDoc, increment } from 'firebase/firestore';
+import { doc, collection, getDocs, updateDoc, increment } from 'firebase/firestore';
 
 interface MediaClip {
   id: string;
@@ -35,21 +35,24 @@ export default function MediaFeedPage() {
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  // 1. Listen to media collection
+  // 1. Fetch media collection once on mount
   useEffect(() => {
-    const q = collection(db, 'media');
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      // C7 fix: only show published clips to public viewers
-      const allClips = snapshot.docs
-        .map(d => ({ id: d.id, ...d.data() } as MediaClip))
-        .filter(c => (c as any).isPublished !== false);
-      setClips(allClips);
-      setLoading(false);
-    }, (err) => {
-      console.error('Failed to fetch short media clips:', err);
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    const fetchClips = async () => {
+      try {
+        const q = collection(db, 'media');
+        const snapshot = await getDocs(q);
+        // C7 fix: only show published clips to public viewers
+        const allClips = snapshot.docs
+          .map(d => ({ id: d.id, ...d.data() } as MediaClip))
+          .filter(c => (c as any).isPublished !== false);
+        setClips(allClips);
+        setLoading(false);
+      } catch (err) {
+        console.error('Failed to fetch short media clips:', err);
+        setLoading(false);
+      }
+    };
+    fetchClips();
   }, []);
 
   // 2. Algorithm: score = (likes*3) + (bookmarks*2) + views + (createdAt/10^8)
