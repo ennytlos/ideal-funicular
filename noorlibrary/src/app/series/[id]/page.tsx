@@ -91,7 +91,7 @@ export default function SeriesDetailsPage() {
             <div className="glass-card" style={{ padding: '0.5rem', marginBottom: '2rem' }}>
               <div style={{ width: '100%', paddingBottom: '140%', position: 'relative', borderRadius: '8px', overflow: 'hidden' }}>
                 <Image
-                  src={s.coverUrl && s.coverUrl.includes('b-cdn.net') ? `/api/cover/series/${s.id}` : (s.coverUrl || '/noor_logo.png')}
+                  src={s.coverUrl || '/noor_logo.png'}
                   alt={s.title}
                   fill
                   style={{ objectFit: 'cover' }}
