@@ -380,7 +380,7 @@ export default function BookDetailsPage() {
           <div className="detail-left-column">
             <div className="detail-cover-wrapper">
               <Image 
-                src={book.coverUrl.startsWith('http') && !book.coverUrl.includes('noorlibrary.b-cdn.net') ? book.coverUrl : `/api/cover/${book.id}`} 
+                src={book.coverUrl || '/noor_logo.png'} 
                 alt={book.title}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
