@@ -636,7 +636,7 @@ export default function UserDashboard() {
                   {/* Cover Image */}
                   <div className="dashboard-book-cover-container">
                     <Image
-                      src={book.coverUrl.startsWith('http') && !book.coverUrl.includes('noorlibrary.b-cdn.net') ? book.coverUrl : `/api/cover/${book.id}`}
+                      src={book.coverUrl || '/noor_logo.png'}
                       alt={book.title}
                       fill
                       sizes="(max-width: 768px) 50vw, 33vw"
@@ -770,7 +770,7 @@ export default function UserDashboard() {
                   {/* Cover Image */}
                   <div className="dashboard-book-cover-container">
                     <Image
-                      src={s.coverUrl && s.coverUrl.includes('b-cdn.net') ? `/api/cover/series/${s.id}` : (s.coverUrl || '/noor_logo.png')}
+                      src={s.coverUrl || '/noor_logo.png'}
                       alt={s.title}
                       fill
                       sizes="(max-width: 768px) 50vw, 33vw"
@@ -827,7 +827,7 @@ export default function UserDashboard() {
                   {/* Cover Image */}
                   <div className="dashboard-book-cover-container">
                     <Image
-                      src={c.coverUrl && c.coverUrl.includes('b-cdn.net') ? `/api/cover/courses/${c.id}` : (c.coverUrl || '/noor_logo.png')}
+                      src={c.coverUrl || '/noor_logo.png'}
                       alt={c.title}
                       fill
                       sizes="(max-width: 768px) 50vw, 33vw"
