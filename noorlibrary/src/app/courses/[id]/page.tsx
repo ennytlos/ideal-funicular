@@ -224,7 +224,7 @@ export default function CourseDetailsPage() {
             <div className="glass-card" style={{ padding: '0.5rem', marginBottom: '2rem' }}>
               <div style={{ width: '100%', paddingBottom: '140%', position: 'relative', borderRadius: '8px', overflow: 'hidden' }}>
                 <Image
-                  src={course.coverUrl && course.coverUrl.includes('b-cdn.net') ? `/api/cover/courses/${course.id}` : (course.coverUrl || '/noor_logo.png')}
+                  src={course.coverUrl || '/noor_logo.png'}
                   alt={course.title}
                   fill
                   style={{ objectFit: 'cover' }}
