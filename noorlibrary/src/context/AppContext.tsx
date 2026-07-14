@@ -510,81 +510,75 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Live-listen to the books collection in Firestore with server fallback
+  // Fetch the books collection from Firestore once with server fallback
   useEffect(() => {
-    const fetchBooksFallback = async () => {
-      try {
-        const res = await fetch('/api/books');
-        if (res.ok) {
-          const data = await res.json();
-          setBooks(data);
+    const fetchBooks = async () => {
+      const fetchBooksFallback = async () => {
+        try {
+          const res = await fetch('/api/books');
+          if (res.ok) {
+            const data = await res.json();
+            setBooks(data);
+          }
+        } catch (err) {
+          console.error("Failed to fetch books catalog via fallback API:", err);
         }
-      } catch (err) {
-        console.error("Failed to fetch books catalog via fallback API:", err);
-      }
-    };
+      };
 
-    const unsubscribeBooks = onSnapshot(
-      collection(db, 'books'),
-      (snap) => {
+      try {
+        const snap = await getDocs(collection(db, 'books'));
         const fetched: Book[] = snap.docs.map((d) => ({
           id: d.id,
           ...(d.data() as Omit<Book, 'id'>),
         }));
         setBooks(fetched);
-      },
-      (err) => {
-        console.warn("Firestore books snapshot failed (likely permissions), trying API fallback:", err.message);
-        fetchBooksFallback();
+      } catch (err: any) {
+        console.warn("Firestore books fetch failed (likely permissions), trying API fallback:", err.message);
+        await fetchBooksFallback();
       }
-    );
-
-    return () => unsubscribeBooks();
+    };
+    fetchBooks();
   }, []);
 
-  // Live-listen to the series collection in Firestore
+  // Fetch the series collection in Firestore once
   useEffect(() => {
-    const unsubscribeSeries = onSnapshot(
-      collection(db, 'series'),
-      (snap) => {
+    const fetchSeries = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'series'));
         const fetched: Series[] = snap.docs.map((d) => ({
           id: d.id,
           ...(d.data() as Omit<Series, 'id'>),
         }));
         setSeries(fetched);
-      },
-      (err) => {
-        console.warn("Firestore series snapshot failed:", err.message);
+      } catch (err: any) {
+        console.warn("Firestore series fetch failed:", err.message);
       }
-    );
-
-    return () => unsubscribeSeries();
+    };
+    fetchSeries();
   }, []);
 
-  // Live-listen to the courses collection in Firestore
+  // Fetch the courses collection in Firestore once
   useEffect(() => {
-    const unsubscribeCourses = onSnapshot(
-      collection(db, 'courses'),
-      (snap) => {
+    const fetchCourses = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'courses'));
         const fetched: Course[] = snap.docs.map((d) => ({
           id: d.id,
           ...(d.data() as Omit<Course, 'id'>),
         }));
         setCourses(fetched);
-      },
-      (err) => {
-        console.warn("Firestore courses snapshot failed:", err.message);
+      } catch (err: any) {
+        console.warn("Firestore courses fetch failed:", err.message);
       }
-    );
-
-    return () => unsubscribeCourses();
+    };
+    fetchCourses();
   }, []);
 
-  // Live-listen to the banners collection in Firestore
+  // Fetch the banners collection in Firestore once
   useEffect(() => {
-    const unsubscribeBanners = onSnapshot(
-      collection(db, 'banners'),
-      (snap) => {
+    const fetchBanners = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'banners'));
         const fetched: Banner[] = snap.docs.map((d) => ({
           id: d.id,
           ...(d.data() as Omit<Banner, 'id'>),
@@ -604,32 +598,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return tB - tA;
         });
         setBanners(fetched);
-      },
-      (err) => {
-        console.warn("Firestore banners snapshot failed:", err.message);
-      }
-    );
-
-    return () => unsubscribeBanners();
-  }, []);
-
-  // Live-listen to the short_reads collection in Firestore with API fallback
-  useEffect(() => {
-    const fetchShortReadsFallback = async () => {
-      try {
-        const res = await fetch('/api/reminder');
-        if (res.ok) {
-          const data = await res.json();
-          setShortReads(data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch reminders via fallback API:", err);
+      } catch (err: any) {
+        console.warn("Firestore banners fetch failed:", err.message);
       }
     };
+    fetchBanners();
+  }, []);
 
-    const unsubscribeShortReads = onSnapshot(
-      collection(db, 'short_reads'),
-      (snap) => {
+  // Fetch the short_reads collection in Firestore once with API fallback
+  useEffect(() => {
+    const fetchShortReads = async () => {
+      const fetchShortReadsFallback = async () => {
+        try {
+          const res = await fetch('/api/reminder');
+          if (res.ok) {
+            const data = await res.json();
+            setShortReads(data);
+          }
+        } catch (err) {
+          console.error("Failed to fetch reminders via fallback API:", err);
+        }
+      };
+
+      try {
+        const snap = await getDocs(collection(db, 'short_reads'));
         const fetched: ShortRead[] = snap.docs.map((d) => ({
           id: d.id,
           ...(d.data() as Omit<ShortRead, 'id'>),
@@ -649,14 +641,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return tB - tA;
         });
         setShortReads(fetched);
-      },
-      (err) => {
-        console.warn("Firestore short_reads snapshot failed, trying API fallback:", err.message);
-        fetchShortReadsFallback();
+      } catch (err: any) {
+        console.warn("Firestore short_reads fetch failed, trying API fallback:", err.message);
+        await fetchShortReadsFallback();
       }
-    );
-
-    return () => unsubscribeShortReads();
+    };
+    fetchShortReads();
   }, []);
 
   // ─── Auth Actions ────────────────────────────────────────────────────────
