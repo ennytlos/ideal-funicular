@@ -19,7 +19,11 @@ export async function GET(
       return NextResponse.json({ error: 'Surah not found' }, { status: 404 });
     }
 
-    return NextResponse.json(surahDoc.data());
+    return NextResponse.json(surahDoc.data(), {
+      headers: {
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    });
   } catch (error) {
     console.error(`Error fetching Surah ${surahId}:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
