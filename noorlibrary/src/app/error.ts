@@ -1,6 +1,18 @@
 'use client';
 
-export default function GlobalError({ reset }: { reset: () => void }) {
+import { useEffect } from 'react';
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error('Application error:', error);
+  }, [error]);
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem', textAlign: 'center', padding: '2rem' }}>
       <h1 style={{ fontFamily: 'Outfit', fontSize: '2.5rem', color: 'var(--text-primary)' }}>Something went wrong</h1>
@@ -8,7 +20,7 @@ export default function GlobalError({ reset }: { reset: () => void }) {
         An unexpected error occurred. Please try refreshing the page.
       </p>
       <button
-        onClick={reset}
+        onClick={() => reset()}
         className="btn btn-primary"
         style={{ minWidth: '160px' }}
       >
