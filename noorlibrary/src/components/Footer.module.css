@@ -1,0 +1,547 @@
+/* ============================================================
+   Footer — Noor Library
+   ============================================================ */
+
+.footer {
+  margin-top: auto;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  padding: 4rem 0 1.5rem;
+  font-family: 'Inter', sans-serif;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Radiant top border */
+.footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(220, 38, 38, 0.5) 20%,
+    var(--accent-gold) 50%,
+    rgba(220, 38, 38, 0.5) 80%,
+    transparent 100%
+  );
+  z-index: 1;
+}
+
+/* Subtle geometric background pattern */
+.patternOverlay {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 15% 85%, rgba(220, 38, 38, 0.04) 0%, transparent 50%),
+    radial-gradient(circle at 85% 20%, rgba(212, 175, 55, 0.04) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Main grid */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.8fr) repeat(2, minmax(180px, 1fr));
+  gap: 3rem;
+  margin-bottom: 3rem;
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: minmax(240px, 1.8fr) 1fr;
+    gap: 2.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .brandCol,
+  .newsletterCol {
+    grid-column: span 1;
+  }
+}
+
+/* ── Brand column ─────────────────────── */
+.brandCol {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.navCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 1.1rem;
+  width: fit-content;
+}
+
+.logoImg {
+  filter: drop-shadow(0 0 6px rgba(220, 38, 38, 0.3));
+  transition: transform 0.3s ease;
+}
+
+.logo:hover .logoImg {
+  transform: scale(1.1) rotate(6deg);
+}
+
+.logoAccent {
+  color: var(--accent-red);
+}
+
+.aboutText {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.75;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Rotating Islamic Quote ───────────── */
+.quoteBox {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent-red);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.quoteBox::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-red), var(--accent-gold), transparent);
+  opacity: 0.4;
+}
+
+.quoteInner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.quoteVisible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.quoteHidden {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.quoteIcon {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--accent-gold);
+  font-family: Georgia, serif;
+  opacity: 0.7;
+}
+
+.quoteText {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.quoteSource {
+  font-size: 0.75rem;
+  color: var(--accent-red);
+  font-weight: 600;
+  font-style: normal;
+}
+
+/* ── Social icons ─────────────────────── */
+.socialList {
+  display: flex;
+  gap: 0.65rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.socialLink {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.socialLink:hover {
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(212, 175, 55, 0.18);
+  background: rgba(212, 175, 55, 0.06);
+}
+
+/* ── Column headings ──────────────────── */
+.colTitle {
+  font-family: 'Outfit', sans-serif;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 1.6rem;
+  letter-spacing: -0.01em;
+  position: relative;
+  display: inline-block;
+}
+
+.colTitle::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -7px;
+  width: 28px;
+  height: 2.5px;
+  background: linear-gradient(90deg, var(--accent-red), var(--accent-gold));
+  border-radius: var(--radius-full);
+}
+
+/* ── Link list ────────────────────────── */
+.linkList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.link {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.linkArrow {
+  color: var(--accent-red);
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all 0.2s ease;
+}
+
+.link:hover {
+  color: var(--text-primary);
+  transform: translateX(4px);
+}
+
+.link:hover .linkArrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ── Newsletter column ────────────────── */
+.newsletterCol {
+  display: flex;
+  flex-direction: column;
+}
+
+.newsletterDesc {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  margin-bottom: 1.25rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .form {
+    flex-direction: row;
+  }
+}
+
+.inputWrapper {
+  position: relative;
+  flex: 1;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  border-radius: var(--radius-md);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.input:focus {
+  border-color: var(--accent-red);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+  outline: none;
+}
+
+.btn {
+  background: var(--accent-red-gradient);
+  color: #fff;
+  border: none;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 0.875rem;
+  padding: 0.75rem 1.4rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.38);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.successMsg {
+  color: #16a34a;
+  font-size: 0.825rem;
+  margin-top: 0.25rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  animation: fadeSlideIn 0.3s ease;
+}
+
+/* ── Stats row ────────────────────────── */
+.statsRow {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-top: 1.75rem;
+  padding: 1.1rem 1.25rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.statValue {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--accent-red);
+}
+
+.statLabel {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.15rem;
+}
+
+.statDivider {
+  width: 1px;
+  height: 32px;
+  background: var(--border-color);
+  flex-shrink: 0;
+}
+
+/* ── Bottom bar ───────────────────────── */
+.bottomBar {
+  border-top: 1px solid var(--border-color);
+  padding: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+  z-index: 1;
+  transition: border-color 0.3s ease;
+}
+
+.bottomBar > * {
+  min-width: 0;
+}
+
+.copyright {
+  font-size: 0.825rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.heart {
+  color: var(--accent-red);
+  display: inline-block;
+  animation: beat 1.2s infinite alternate ease-in-out;
+}
+
+/* Arabic Bismillah badge */
+.bottomBadge {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(220, 38, 38, 0.08));
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: var(--radius-full);
+  padding: 0.3rem 1rem;
+  flex-shrink: 0;
+}
+
+.bottomBadgeText {
+  font-size: 0.95rem;
+  color: var(--accent-gold);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.bottomLinks {
+  display: flex;
+  gap: 1.2rem;
+  list-style: none;
+  flex-wrap: wrap;
+}
+
+.bottomLink {
+  color: var(--text-muted);
+  font-size: 0.825rem;
+  transition: color 0.2s ease;
+}
+
+.bottomLink:hover {
+  color: var(--accent-red);
+}
+
+/* ── Keyframes ────────────────────────── */
+@keyframes beat {
+  from { transform: scale(1); }
+  to   { transform: scale(1.18); }
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .bottomBar {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    text-align: center;
+  }
+
+  .copyright,
+  .bottomBadge,
+  .bottomLinks {
+    width: 100%;
+  }
+
+  .copyright {
+    justify-content: center;
+    white-space: normal;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .copyrightNote {
+    margin-top: 0.25rem;
+  }
+
+  .bottomBadge {
+    margin-top: 0.25rem;
+  }
+
+  .bottomLinks {
+    justify-content: center;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .bottomBar {
+    gap: 0.75rem;
+  }
+
+  .bottomLinks {
+    gap: 0.75rem;
+  }
+
+  .statValue {
+    font-size: 1rem;
+  }
+}
