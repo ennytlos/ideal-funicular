@@ -1,0 +1,59 @@
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  transpilePackages: ["@noorlibrary/quran-translations"],
+  async headers() {
+    return [
+      {
+        source: "/api/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET,DELETE,PATCH,POST,PUT,OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization" },
+          { key: "Access-Control-Max-Age", value: "3600" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        ]
+      },
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ]
+      }
+    ]
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        // Bunny CDN — covers all *.b-cdn.net pull zones
+        protocol: 'https',
+        hostname: '*.b-cdn.net',
+      },
+      {
+        // Custom Bunny CDN hostnames (if you have a custom domain on your pull zone)
+        protocol: 'https',
+        hostname: '*.bunnycdn.com',
+      },
+    ],
+  },
+  // Required for react-pdf to work with Next.js (Webpack)
+  webpack: (config) => {
+    config.resolve.alias.canvas = false;
+    return config;
+  },
+  // Required for react-pdf to work with Next.js (Turbopack) & to silence configuration warnings
+  turbopack: {
+    root: __dirname,
+    resolveAlias: {
+      canvas: './empty-module.js',
+    },
+  },
+};
+
+export default nextConfig;
