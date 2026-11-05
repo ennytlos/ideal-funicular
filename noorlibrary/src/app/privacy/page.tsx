@@ -57,7 +57,7 @@ export default function PrivacyPage() {
             ← Back to Noor Library
           </Link>
 
-          <div
+          {/* <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -76,7 +76,7 @@ export default function PrivacyPage() {
           >
             <span>📜</span>
             <span>Legal &amp; Data Protection</span>
-          </div>
+          </div> */}
 
           <h1
             style={{
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
               margin: '0 0 0.5rem 0',
             }}
           >
-            Privacy Policy &amp; Data Rights
+            Privacy Policy
           </h1>
 
           <p
