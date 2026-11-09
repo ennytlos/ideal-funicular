@@ -764,6 +764,12 @@ export function normalizeWebQuranSettings(
     base.translationLanguage ??
     "en";
 
+  const rawFont = incoming?.arabicFont ?? base.arabicFont ?? "amiri";
+  const normalizedFont =
+    rawFont === "scheherazade" || rawFont === "standard" || rawFont === "amiri"
+      ? rawFont
+      : "amiri";
+
   const savedDate = raw.todayReadDate || todayStr;
   const todayReadCount =
     incoming?.todayReadCount !== undefined
@@ -774,6 +780,7 @@ export function normalizeWebQuranSettings(
 
   return {
     ...raw,
+    arabicFont: normalizedFont,
     arabicFontSize: arabicSize,
     fontSizeArabic: arabicSize,
     translationFontSize: transSize,
