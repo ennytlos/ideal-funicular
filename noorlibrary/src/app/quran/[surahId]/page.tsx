@@ -343,7 +343,7 @@ export default function SurahReader({
     "light" | "cream" | "sepia" | "green" | "dark"
   >("light");
   const [arabicFont, setArabicFont] = useState<
-    "amiri" | "scheherazade" | "noto_naskh"
+    "amiri" | "scheherazade"
   >("amiri");
   const [selectedTransLang, setSelectedTransLang] = useState<
     "en" | "yoruba" | "hausa" | "igbo"
@@ -438,7 +438,11 @@ export default function SurahReader({
             ? "dark"
             : rawTheme;
       if (theme) setReaderTheme(theme);
-      if (settings.arabicFont) setArabicFont(settings.arabicFont);
+      if (settings.arabicFont) {
+        setArabicFont(
+          settings.arabicFont === "scheherazade" ? "scheherazade" : "amiri"
+        );
+      }
       if (settings.selectedTransLang || settings.translationLanguage) {
         setSelectedTransLang(
           settings.selectedTransLang || settings.translationLanguage,
@@ -1458,8 +1462,6 @@ export default function SurahReader({
     switch (f) {
       case "scheherazade":
         return "'Scheherazade New', serif";
-      case "noto_naskh":
-        return "'Noto Naskh Arabic', serif";
       case "amiri":
       default:
         return "'Amiri', serif";
@@ -1487,7 +1489,7 @@ export default function SurahReader({
     >
       {/* Import calligraphic Arabic fonts */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Naskh+Arabic:wght@400;700&family=Scheherazade+New:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Scheherazade+New:wght@400;700&display=swap');
         .quran-arabic-text {
           font-family: ${getArabicFontFamilyWeb(arabicFont)};
           line-height: 2.2;
@@ -4740,7 +4742,6 @@ export default function SurahReader({
                   {[
                     { id: "amiri", label: "Amiri Quran" },
                     { id: "scheherazade", label: "Scheherazade New" },
-                    { id: "noto_naskh", label: "Noto Naskh Arabic" },
                   ].map((f) => {
                     const isSelected = arabicFont === f.id;
                     return (
