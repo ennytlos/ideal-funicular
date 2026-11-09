@@ -20,7 +20,7 @@ const ReaderModal = dynamic(() => import('../../../components/ReaderModal'), {
 export default function BookDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { books, user, purchasedBooks, downloadedBooks, purchaseBook, courses, enrolledCourses, isLoading } = useApp();
+  const { books, user, purchasedBooks, downloadedBooks, purchaseBook, purchaseDownload, courses, enrolledCourses, isLoading } = useApp();
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -226,11 +226,15 @@ export default function BookDetailsPage() {
     }
   };
 
-  /** For paid PDF downloads — redirect to Paystack */
+  /** For paid PDF downloads — redirect to Paystack (or claim free download if downloadPrice === 0) */
   const handleDownloadPurchase = async () => {
     if (!user) { setIsAuthOpen(true); return; }
     setIsProcessing(true);
     try {
+      if ((Number(book.downloadPrice) || 0) === 0) {
+        await purchaseDownload(book.id);
+        return;
+      }
       const res = await fetch('/api/payment/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -248,6 +252,9 @@ export default function BookDetailsPage() {
 
   const handleReadNow = () => {
     if (!user) { setIsAuthOpen(true); return; }
+    if (isFree && !hasPurchased) {
+      void purchaseBook(book.id);
+    }
     setIsReaderOpen(true);
   };
 
@@ -371,9 +378,20 @@ export default function BookDetailsPage() {
                   </span>
                 </div>
                 {hasReadAccess ? (
-                  <button className="btn btn-secondary access-btn-full access-btn-purchased" onClick={handleReadNow}>
-                    Read Now {isSubscription && isSubActive && '(Subscribed ✓)'}
-                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <button className="btn btn-secondary access-btn-full access-btn-purchased" onClick={handleReadNow}>
+                      Read Now {isSubscription && isSubActive && '(Subscribed ✓)'}
+                    </button>
+                    {isFree && !hasPurchased && (
+                      <button
+                        className="btn btn-primary access-btn-full"
+                        onClick={handleFreeAccess}
+                        disabled={isProcessing}
+                      >
+                        {isProcessing ? 'Saving...' : '+ Save to My Library (Free)'}
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <button 
                     className="btn btn-primary access-btn-full" 
@@ -391,7 +409,7 @@ export default function BookDetailsPage() {
               <div className="access-section">
                 <div className="access-row">
                   <span className="access-row-label">{book.contentType === 'json' ? 'Text File Download' : 'PDF Download'}</span>
-                  <span className="access-row-value">₦{book.downloadPrice.toLocaleString()}</span>
+                  <span className="access-row-value">{(Number(book.downloadPrice) || 0) === 0 ? 'Free' : `₦${book.downloadPrice.toLocaleString()}`}</span>
                 </div>
                 {hasDownloaded ? (
                   <button className="btn btn-secondary access-btn-full" onClick={handleDownload}>
@@ -399,7 +417,7 @@ export default function BookDetailsPage() {
                   </button>
                 ) : (
                   <button className="btn btn-gold access-btn-full" onClick={handleDownloadPurchase} disabled={isProcessing}>
-                    {isProcessing ? 'Processing...' : 'Purchase Download'}
+                    {isProcessing ? 'Processing...' : ((Number(book.downloadPrice) || 0) === 0 ? 'Unlock Free Download' : 'Purchase Download')}
                   </button>
                 )}
               </div>
