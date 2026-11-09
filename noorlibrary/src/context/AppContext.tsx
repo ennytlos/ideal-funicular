@@ -13,6 +13,7 @@ import {
   onIdTokenChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
@@ -250,6 +251,7 @@ interface AppContextType {
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   register: (email: string, name: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   purchaseBook: (bookId: string) => Promise<boolean>;
   purchaseDownload: (bookId: string) => Promise<boolean>;
@@ -923,6 +925,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     logFirebaseEvent("sign_up", { method: "email" });
   };
 
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email.trim());
+    logFirebaseEvent("password_reset_request", { method: "email" });
+  };
+
   const logout = async () => {
     await signOut(auth);
     // Clear session cookie
@@ -1476,6 +1483,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         login,
         loginWithGoogle,
         register,
+        resetPassword,
         logout,
         purchaseBook,
         purchaseDownload,
