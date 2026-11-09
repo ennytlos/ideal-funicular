@@ -171,7 +171,19 @@ export default function CourseDetailsPage() {
     }
   };
 
-  const handleStartLearning = (specificLessonId?: string | React.MouseEvent) => {
+  const handleStartLearning = async (specificLessonId?: string | React.MouseEvent) => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+    if (isFree && !isEnrolled) {
+      setIsProcessing(true);
+      try {
+        await enrollCourse(course.id);
+      } finally {
+        setIsProcessing(false);
+      }
+    }
     const lId = typeof specificLessonId === 'string' ? specificLessonId : targetLesson;
     router.push(`/courses/${course.id}/learn${lId ? `?lessonId=${encodeURIComponent(lId)}` : ''}`);
   };
@@ -243,17 +255,20 @@ export default function CourseDetailsPage() {
               </div>
 
               {hasAccess ? (
-                <button
-                   onClick={handleStartLearning}
-                   className="btn btn-primary"
-                   style={{ width: '100%', padding: '1rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
-                >
-                   <span>Go to Learning Portal</span>
-                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                     <path d="M5 12h14" />
-                     <path d="m12 5 7 7-7 7" />
-                   </svg>
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <button
+                     onClick={handleStartLearning}
+                     className="btn btn-primary"
+                     disabled={isProcessing}
+                     style={{ width: '100%', padding: '1rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+                  >
+                     <span>{isProcessing ? 'Enrolling...' : (isEnrolled ? 'Go to Learning Portal' : 'Enroll & Start Learning (Free)')}</span>
+                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                       <path d="M5 12h14" />
+                       <path d="m12 5 7 7-7 7" />
+                     </svg>
+                  </button>
+                </div>
               ) : (
                 <button
                    onClick={handleEnrollment}
