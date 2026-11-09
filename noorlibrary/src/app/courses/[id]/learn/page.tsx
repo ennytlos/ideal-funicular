@@ -391,7 +391,7 @@ export default function LearningPortalPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { courses, user, enrolledCourses, courseProgress, updateCourseProgress } = useApp();
+  const { courses, user, enrolledCourses, enrollCourse, courseProgress, updateCourseProgress } = useApp();
 
   const courseId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
   const course = courses.find(c => c.id === courseId);
@@ -480,9 +480,24 @@ export default function LearningPortalPage() {
 
   useEffect(() => {
     if (!course) return;
-    
-    // Redirect non-enrolled users
-    if (!enrolledCourses.includes(course.id)) {
+
+    const isFree = (Number(course.price) || 0) === 0;
+    const isCreatorOrAdmin =
+      user?.role === 'admin' ||
+      (user?.role === 'creator' && course.creatorId === user?.uid);
+    const isSubActive = Boolean(
+      user?.subscriptions &&
+        user.subscriptions[course.id] &&
+        user.subscriptions[course.id] > Date.now()
+    );
+    const isEnrolled = enrolledCourses.includes(course.id);
+
+    if (isFree && user && !isEnrolled) {
+      void enrollCourse(course.id);
+    }
+
+    // Redirect non-enrolled users who do not have free/creator/subscription access
+    if (!isEnrolled && !isFree && !isCreatorOrAdmin && !isSubActive) {
       alert("You must enroll in this course to access the learning portal.");
       router.push(`/courses/${course.id}`);
       return;
@@ -497,7 +512,7 @@ export default function LearningPortalPage() {
         setActiveLesson(found);
       }
     }
-  }, [course, searchParams, enrolledCourses, router, activeLesson]);
+  }, [course, searchParams, enrolledCourses, enrollCourse, user, router, activeLesson]);
 
   if (!course) {
     return (
