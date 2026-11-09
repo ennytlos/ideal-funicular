@@ -306,40 +306,77 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Map a Firebase user + Firestore profile into our User shape */
+/** Map a Firebase user + Firestore profile into our User shape (resilient to transient Firestore errors) */
 async function buildUser(firebaseUser: FirebaseUser): Promise<User> {
-  const profileRef = doc(db, "users", firebaseUser.uid);
-  const profileSnap = await getDoc(profileRef);
-
-  const role = profileSnap.exists()
-    ? (profileSnap.data().role as "admin" | "creator" | "society" | "user")
-    : "user";
+  let role: "admin" | "creator" | "society" | "user" = "user";
+  let displayName = firebaseUser.displayName ?? undefined;
+  try {
+    const profileRef = doc(db, "users", firebaseUser.uid);
+    const profileSnap = await getDoc(profileRef);
+    if (profileSnap.exists()) {
+      const data = profileSnap.data();
+      if (data.role) {
+        role = data.role as "admin" | "creator" | "society" | "user";
+      }
+      if (!displayName && data.displayName) {
+        displayName = data.displayName;
+      }
+    }
+  } catch (err) {
+    console.warn("buildUser profile lookup warning (continuing with auth user):", err);
+  }
 
   return {
     uid: firebaseUser.uid,
     email: firebaseUser.email ?? "",
-    displayName: firebaseUser.displayName ?? undefined,
+    displayName,
     role,
   };
 }
 
-/** Ensure a Firestore user document exists */
-async function ensureUserDoc(firebaseUser: FirebaseUser, displayName?: string) {
-  const ref = doc(db, "users", firebaseUser.uid);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) {
-    await setDoc(ref, {
-      email: firebaseUser.email,
-      displayName: displayName || firebaseUser.displayName || "",
-      role: "user",
-      purchasedBooks: [],
-      purchasedSeries: [],
-      downloadedBooks: [],
-      enrolledCourses: [],
-      courseProgress: {},
-      createdAt: serverTimestamp(),
+/** Sync the server httpOnly session cookie so /dashboard and /admin routes work immediately */
+async function syncSessionCookie(firebaseUser: FirebaseUser): Promise<void> {
+  try {
+    const idToken = await firebaseUser.getIdToken();
+    await fetch("/api/auth/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
     });
+  } catch (err) {
+    console.warn("Session cookie sync warning:", err);
   }
+}
+
+/** Ensure a Firestore user document exists without blocking sign-in on transient errors */
+async function ensureUserDoc(firebaseUser: FirebaseUser, displayName?: string) {
+  try {
+    const ref = doc(db, "users", firebaseUser.uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        email: firebaseUser.email,
+        displayName: displayName || firebaseUser.displayName || "",
+        role: "user",
+        purchasedBooks: [],
+        purchasedSeries: [],
+        downloadedBooks: [],
+        enrolledCourses: [],
+        courseProgress: {},
+        createdAt: serverTimestamp(),
+      });
+    }
+  } catch (err) {
+    console.warn("ensureUserDoc warning:", err);
+  }
+}
+
+function clearCatalogSessionCache() {
+  try {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("noor_catalogs_cache");
+    }
+  } catch {}
 }
 
 // ─── Provider ────────────────────────────────────────────────────────────────
@@ -447,38 +484,89 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (firebaseUser) {
-        // Sync session cookie so Next.js middleware can protect routes
-        try {
-          const idToken = await firebaseUser.getIdToken();
-          await fetch("/api/auth/session", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idToken }),
-          });
-        } catch {
-          // Non-fatal — middleware falls back gracefully
-        }
+        // Immediately set basic authenticated user so UI responds right away
+        setUser((prev) =>
+          prev && prev.uid === firebaseUser.uid
+            ? prev
+            : {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email ?? "",
+                displayName: firebaseUser.displayName ?? undefined,
+                role: "user",
+              },
+        );
 
-        const appUser = await buildUser(firebaseUser);
-        setUser(appUser);
+        // Sync session cookie and build full user profile in parallel
+        await Promise.allSettled([
+          syncSessionCookie(firebaseUser),
+          buildUser(firebaseUser).then((appUser) => {
+            setUser((prev) => ({
+              ...appUser,
+              role:
+                appUser.role !== "user"
+                  ? appUser.role
+                  : prev?.role && prev.role !== "user"
+                  ? prev.role
+                  : "user",
+              subscriptions: prev?.subscriptions,
+            }));
+          }),
+        ]);
 
-        // Live-listen to the user's purchased/downloaded books
+        // Live-listen to the user's profile and purchased/downloaded items
         const userRef = doc(db, "users", firebaseUser.uid);
         unsubscribeUser = onSnapshot(
           userRef,
           (snap) => {
             if (snap.exists()) {
               const data = snap.data();
-              setPurchasedBooks(data.purchasedBooks ?? []);
-              setPurchasedSeries(data.purchasedSeries ?? []);
-              setDownloadedBooks(data.downloadedBooks ?? []);
-              setEnrolledCourses(data.enrolledCourses ?? []);
+              const now = Date.now();
+              const subs =
+                data.subscriptions && typeof data.subscriptions === "object"
+                  ? (data.subscriptions as Record<string, number>)
+                  : {};
+              const activeSubIds = Object.keys(subs).filter(
+                (id) => Number(subs[id]) > now,
+              );
+
+              const pBooks = Array.from(
+                new Set([
+                  ...(Array.isArray(data.purchasedBooks) ? data.purchasedBooks : []),
+                  ...activeSubIds,
+                ]),
+              );
+              const pSeries = Array.isArray(data.purchasedSeries)
+                ? data.purchasedSeries
+                : [];
+              const dBooks = Array.isArray(data.downloadedBooks)
+                ? data.downloadedBooks
+                : [];
+              const eCourses = Array.from(
+                new Set([
+                  ...(Array.isArray(data.enrolledCourses) ? data.enrolledCourses : []),
+                  ...activeSubIds,
+                ]),
+              );
+
+              setPurchasedBooks((prev) => Array.from(new Set([...prev, ...pBooks])));
+              setPurchasedSeries((prev) => Array.from(new Set([...prev, ...pSeries])));
+              setDownloadedBooks((prev) => Array.from(new Set([...prev, ...dBooks])));
+              setEnrolledCourses((prev) => Array.from(new Set([...prev, ...eCourses])));
               setCourseProgress(data.courseProgress ?? {});
               setQuranBookmark(data.quranBookmark ?? null);
-              // C6 fix: sync subscriptions so monthly/yearly access gates work correctly
+
+              const liveRole = data.role as User["role"] | undefined;
               setUser((prev) =>
                 prev
-                  ? { ...prev, subscriptions: data.subscriptions ?? {} }
+                  ? {
+                      ...prev,
+                      displayName: prev.displayName || data.displayName || undefined,
+                      role:
+                        liveRole && liveRole !== "user"
+                          ? liveRole
+                          : prev.role || "user",
+                      subscriptions: data.subscriptions ?? {},
+                    }
                   : prev,
               );
             }
@@ -487,6 +575,89 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             console.warn("Firestore user onSnapshot failed:", err.message);
           },
         );
+
+        // Reconcile verified purchase ledgers (user_books, user_series, user_downloads, user_courses)
+        // and approved creator/society requests so nothing is ever lost on refresh
+        (async () => {
+          try {
+            const [ubSnap, usSnap, udSnap, ucSnap, crSnap, srSnap] =
+              await Promise.allSettled([
+                getDocs(
+                  query(
+                    collection(db, "user_books"),
+                    where("userId", "==", firebaseUser.uid),
+                  ),
+                ),
+                getDocs(
+                  query(
+                    collection(db, "user_series"),
+                    where("userId", "==", firebaseUser.uid),
+                  ),
+                ),
+                getDocs(
+                  query(
+                    collection(db, "user_downloads"),
+                    where("userId", "==", firebaseUser.uid),
+                  ),
+                ),
+                getDocs(
+                  query(
+                    collection(db, "user_courses"),
+                    where("userId", "==", firebaseUser.uid),
+                  ),
+                ),
+                getDoc(doc(db, "creator_requests", firebaseUser.uid)),
+                getDoc(doc(db, "society_requests", firebaseUser.uid)),
+              ]);
+
+            if (ubSnap.status === "fulfilled" && !ubSnap.value.empty) {
+              const ids = ubSnap.value.docs.map((d) => d.data().bookId).filter(Boolean);
+              if (ids.length > 0) {
+                setPurchasedBooks((prev) => Array.from(new Set([...prev, ...ids])));
+              }
+            }
+            if (usSnap.status === "fulfilled" && !usSnap.value.empty) {
+              const ids = usSnap.value.docs.map((d) => d.data().seriesId).filter(Boolean);
+              if (ids.length > 0) {
+                setPurchasedSeries((prev) => Array.from(new Set([...prev, ...ids])));
+              }
+            }
+            if (udSnap.status === "fulfilled" && !udSnap.value.empty) {
+              const ids = udSnap.value.docs.map((d) => d.data().bookId).filter(Boolean);
+              if (ids.length > 0) {
+                setDownloadedBooks((prev) => Array.from(new Set([...prev, ...ids])));
+              }
+            }
+            if (ucSnap.status === "fulfilled" && !ucSnap.value.empty) {
+              const ids = ucSnap.value.docs.map((d) => d.data().courseId).filter(Boolean);
+              if (ids.length > 0) {
+                setEnrolledCourses((prev) => Array.from(new Set([...prev, ...ids])));
+              }
+            }
+            if (
+              crSnap.status === "fulfilled" &&
+              crSnap.value.exists() &&
+              crSnap.value.data()?.status === "approved"
+            ) {
+              setUser((prev) =>
+                prev && (!prev.role || prev.role === "user")
+                  ? { ...prev, role: "creator" }
+                  : prev,
+              );
+            }
+            if (
+              srSnap.status === "fulfilled" &&
+              srSnap.value.exists() &&
+              srSnap.value.data()?.status === "approved"
+            ) {
+              setUser((prev) =>
+                prev && (!prev.role || prev.role === "user")
+                  ? { ...prev, role: "society" }
+                  : prev,
+              );
+            }
+          } catch {}
+        })();
 
         // Live-listen to the user's submissions
         const submissionsQuery = query(
@@ -560,33 +731,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Unified Catalog Loader: fetches from edge-cached /api/catalogs with sessionStorage caching
+  // Unified Catalog Loader: fast initial hydrate from /api/catalogs + live Firestore sync
   useEffect(() => {
     let isMounted = true;
 
     const loadCatalogs = async () => {
-      // 1. Check session storage cache for instant 0ms render
+      // 1. Check session storage cache for instant 0ms initial render
       try {
         const cached = typeof window !== 'undefined' ? sessionStorage.getItem('noor_catalogs_cache') : null;
         if (cached) {
           const parsed = JSON.parse(cached);
           const cacheAge = Date.now() - (parsed.timestamp || 0);
-          if (cacheAge < 5 * 60 * 1000) { // 5 minutes
+          if (cacheAge < 60 * 1000) {
             if (isMounted) {
-              if (parsed.books) setBooks(parsed.books);
-              if (parsed.series) setSeries(parsed.series);
-              if (parsed.courses) setCourses(parsed.courses);
-              if (parsed.banners) setBanners(parsed.banners);
-              if (parsed.shortReads) setShortReads(parsed.shortReads);
+              if (Array.isArray(parsed.books) && parsed.books.length > 0) setBooks(parsed.books);
+              if (Array.isArray(parsed.series) && parsed.series.length > 0) setSeries(parsed.series);
+              if (Array.isArray(parsed.courses) && parsed.courses.length > 0) setCourses(parsed.courses);
+              if (Array.isArray(parsed.banners) && parsed.banners.length > 0) setBanners(parsed.banners);
+              if (Array.isArray(parsed.shortReads) && parsed.shortReads.length > 0) setShortReads(parsed.shortReads);
             }
-            return;
           }
         }
       } catch {
         // Ignore storage errors
       }
 
-      // 2. Fetch from Edge-cached /api/catalogs
+      // 2. Fetch from /api/catalogs for fast edge response
       try {
         const res = await fetch('/api/catalogs');
         if (res.ok) {
@@ -610,28 +780,104 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         console.warn('Failed to load edge-cached catalogs, falling back to direct query:', err.message);
       }
 
-      // 3. Fallback: query books fallback if API was unavailable
+      // 3. Fallback: query books API if unified endpoint was unavailable
       try {
         const res = await fetch('/api/books');
         if (res.ok && isMounted) {
           const data = await res.json();
-          setBooks(data);
+          if (Array.isArray(data)) setBooks(data);
         }
       } catch {}
     };
 
     loadCatalogs();
 
+    // 4. Live Firestore listeners so added/edited books, courses, series, reminders & banners stay in real-time sync
+    const unsubBooks = onSnapshot(
+      collection(db, "books"),
+      (snap) => {
+        if (!isMounted || snap.empty) return;
+        const list = snap.docs
+          .map((d) => ({ ...(d.data() as Omit<Book, "id">), id: d.id }))
+          .filter((b: any) => b.isPublished !== false);
+        setBooks(list);
+        clearCatalogSessionCache();
+      },
+      (err) => console.warn("Books live listener warning:", err.message),
+    );
+
+    const unsubSeries = onSnapshot(
+      collection(db, "series"),
+      (snap) => {
+        if (!isMounted || snap.empty) return;
+        const list = snap.docs
+          .map((d) => ({ ...(d.data() as Omit<Series, "id">), id: d.id }))
+          .filter((s: any) => s.isPublished !== false);
+        setSeries(list);
+        clearCatalogSessionCache();
+      },
+      (err) => console.warn("Series live listener warning:", err.message),
+    );
+
+    const unsubCourses = onSnapshot(
+      collection(db, "courses"),
+      (snap) => {
+        if (!isMounted || snap.empty) return;
+        const list = snap.docs
+          .map((d) => ({ ...(d.data() as Omit<Course, "id">), id: d.id }))
+          .filter((c: any) => c.isPublished !== false);
+        setCourses(list);
+        clearCatalogSessionCache();
+      },
+      (err) => console.warn("Courses live listener warning:", err.message),
+    );
+
+    const unsubShortReads = onSnapshot(
+      collection(db, "short_reads"),
+      (snap) => {
+        if (!isMounted || snap.empty) return;
+        const list = snap.docs
+          .map((d) => ({ ...(d.data() as Omit<ShortRead, "id">), id: d.id }))
+          .filter((sr: any) => sr.isPublished !== false);
+        setShortReads(list);
+        clearCatalogSessionCache();
+      },
+      (err) => console.warn("ShortReads live listener warning:", err.message),
+    );
+
+    const unsubBanners = onSnapshot(
+      collection(db, "banners"),
+      (snap) => {
+        if (!isMounted) return;
+        const list = snap.docs.map((d) => ({
+          ...(d.data() as Omit<Banner, "id">),
+          id: d.id,
+        }));
+        if (list.length > 0) setBanners(list);
+      },
+      (err) => console.warn("Banners live listener warning:", err.message),
+    );
+
     return () => {
       isMounted = false;
+      unsubBooks();
+      unsubSeries();
+      unsubCourses();
+      unsubShortReads();
+      unsubBanners();
     };
   }, []);
 
   // ─── Auth Actions ────────────────────────────────────────────────────────
 
   const login = async (email: string, password: string) => {
-    const credential = await signInWithEmailAndPassword(auth, email, password);
-    await ensureUserDoc(credential.user);
+    const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+    await syncSessionCookie(credential.user);
+    try {
+      await ensureUserDoc(credential.user);
+    } catch (docErr) {
+      console.warn("Could not ensure user doc on login:", docErr);
+    }
     logFirebaseEvent("login", { method: "email" });
   };
 
@@ -648,6 +894,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (credential?.user) {
+      await syncSessionCookie(credential.user);
       try {
         await ensureUserDoc(
           credential.user,
@@ -663,18 +910,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const register = async (email: string, name: string, password: string) => {
     const credential = await createUserWithEmailAndPassword(
       auth,
-      email,
+      email.trim(),
       password,
     );
     await updateProfile(credential.user, { displayName: name });
-    await ensureUserDoc(credential.user, name);
+    await syncSessionCookie(credential.user);
+    try {
+      await ensureUserDoc(credential.user, name);
+    } catch (docErr) {
+      console.warn("Could not ensure user doc on register:", docErr);
+    }
     logFirebaseEvent("sign_up", { method: "email" });
   };
 
   const logout = async () => {
     await signOut(auth);
     // Clear session cookie
-    await fetch("/api/auth/session", { method: "DELETE" });
+    await fetch("/api/auth/session", { method: "DELETE" }).catch(() => {});
+  };
+
+  // Helper to build authenticated headers with fresh Firebase ID token
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (auth.currentUser) {
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        headers["Authorization"] = `Bearer ${idToken}`;
+      } catch {}
+    }
+    return headers;
   };
 
   // ─── Purchase Actions ────────────────────────────────────────────────────
@@ -682,9 +946,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const purchaseBook = async (bookId: string): Promise<boolean> => {
     if (!user) return false;
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch("/api/library/claim-free", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ type: "book", itemId: bookId }),
       });
       if (!res.ok) {
@@ -704,9 +969,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const purchaseDownload = async (bookId: string): Promise<boolean> => {
     if (!user) return false;
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch("/api/library/claim-free", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ type: "download", itemId: bookId }),
       });
       if (!res.ok) {
@@ -731,6 +997,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, { purchasedBooks: arrayRemove(bookId) });
+      setPurchasedBooks((prev) => prev.filter((id) => id !== bookId));
       return true;
     } catch (err: any) {
       console.error("removePurchasedBook error:", err);
@@ -743,6 +1010,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, { downloadedBooks: arrayRemove(bookId) });
+      setDownloadedBooks((prev) => prev.filter((id) => id !== bookId));
       return true;
     } catch (err: any) {
       console.error("removeDownloadedBook error:", err);
@@ -753,9 +1021,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const purchaseSeries = async (seriesId: string): Promise<boolean> => {
     if (!user) return false;
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch("/api/library/claim-free", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ type: "series", itemId: seriesId }),
       });
       if (!res.ok) {
@@ -777,6 +1046,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, { purchasedSeries: arrayRemove(seriesId) });
+      setPurchasedSeries((prev) => prev.filter((id) => id !== seriesId));
       return true;
     } catch (err: any) {
       console.error("removePurchasedSeries error:", err);
@@ -787,9 +1057,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const enrollCourse = async (courseId: string): Promise<boolean> => {
     if (!user) return false;
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch("/api/library/claim-free", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ type: "course", itemId: courseId }),
       });
       if (!res.ok) {
@@ -811,6 +1082,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, { enrolledCourses: arrayRemove(courseId) });
+      setEnrolledCourses((prev) => prev.filter((id) => id !== courseId));
       return true;
     } catch (err: any) {
       console.error("removeEnrolledCourse error:", err);
@@ -967,7 +1239,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // ─── Book Catalog Actions (admin-only) ────────────────────────────────────
+  // ─── Book Catalog Actions (admin/creator) ─────────────────────────────────
 
   const addBook = async (
     book: Omit<Book, "id" | "createdAt">,
@@ -977,19 +1249,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isPublished: true,
       createdAt: serverTimestamp(),
     });
+    const newBook: Book = { ...(book as any), id: docRef.id, isPublished: true };
+    setBooks((prev) => [newBook, ...prev.filter((b) => b.id !== docRef.id)]);
+    clearCatalogSessionCache();
     return docRef.id;
   };
 
   const updateBook = async (book: Book): Promise<void> => {
     const { id, ...rest } = book;
     await updateDoc(doc(db, "books", id), rest);
+    setBooks((prev) => prev.map((b) => (b.id === id ? { ...b, ...book } : b)));
+    clearCatalogSessionCache();
   };
 
   const deleteBook = async (id: string): Promise<void> => {
     await deleteDoc(doc(db, "books", id));
+    setBooks((prev) => prev.filter((b) => b.id !== id));
+    clearCatalogSessionCache();
   };
 
-  // ─── Series Catalog Actions (admin-only) ──────────────────────────────────
+  // ─── Series Catalog Actions (admin/creator) ───────────────────────────────
 
   const addSeries = async (
     s: Omit<Series, "id" | "createdAt">,
@@ -999,19 +1278,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isPublished: true,
       createdAt: serverTimestamp(),
     });
+    const newSeries: Series = { ...(s as any), id: docRef.id, isPublished: true };
+    setSeries((prev) => [newSeries, ...prev.filter((item) => item.id !== docRef.id)]);
+    clearCatalogSessionCache();
     return docRef.id;
   };
 
   const updateSeries = async (s: Series): Promise<void> => {
     const { id, ...rest } = s;
     await updateDoc(doc(db, "series", id), rest);
+    setSeries((prev) => prev.map((item) => (item.id === id ? { ...item, ...s } : item)));
+    clearCatalogSessionCache();
   };
 
   const deleteSeries = async (id: string): Promise<void> => {
     await deleteDoc(doc(db, "series", id));
+    setSeries((prev) => prev.filter((item) => item.id !== id));
+    clearCatalogSessionCache();
   };
 
-  // ─── Course Catalog Actions (admin-only) ──────────────────────────────────
+  // ─── Course Catalog Actions (admin/creator) ───────────────────────────────
 
   const addCourse = async (
     c: Omit<Course, "id" | "createdAt">,
@@ -1021,16 +1307,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isPublished: true,
       createdAt: serverTimestamp(),
     });
+    const newCourse: Course = { ...(c as any), id: docRef.id, isPublished: true };
+    setCourses((prev) => [newCourse, ...prev.filter((item) => item.id !== docRef.id)]);
+    clearCatalogSessionCache();
     return docRef.id;
   };
 
   const updateCourse = async (c: Course): Promise<void> => {
     const { id, ...rest } = c;
     await updateDoc(doc(db, "courses", id), rest);
+    setCourses((prev) => prev.map((item) => (item.id === id ? { ...item, ...c } : item)));
+    clearCatalogSessionCache();
   };
 
   const deleteCourse = async (id: string): Promise<void> => {
     await deleteDoc(doc(db, "courses", id));
+    setCourses((prev) => prev.filter((item) => item.id !== id));
+    clearCatalogSessionCache();
   };
 
   // ─── Short Reads / Reminders Actions (admin-only) ──────────────────────────
@@ -1044,6 +1337,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isPublished: true,
         createdAt: serverTimestamp(),
       });
+      const newSr: ShortRead = { ...(sr as any), id: docRef.id, isPublished: true };
+      setShortReads((prev) => [newSr, ...prev.filter((item) => item.id !== docRef.id)]);
+      clearCatalogSessionCache();
       return docRef.id;
     } catch (err: any) {
       if (
@@ -1061,7 +1357,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           throw new Error(errorData.error || "Failed to save reminder via API");
         }
         const data = await res.json();
-        // Refetch manually to sync state
+        clearCatalogSessionCache();
         const refetchRes = await fetch("/api/reminder");
         if (refetchRes.ok) {
           setShortReads(await refetchRes.json());
@@ -1076,6 +1372,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const { id, ...rest } = sr;
       await updateDoc(doc(db, "short_reads", id), rest);
+      setShortReads((prev) => prev.map((item) => (item.id === id ? { ...item, ...sr } : item)));
+      clearCatalogSessionCache();
     } catch (err: any) {
       if (
         err.code === "permission-denied" ||
@@ -1093,7 +1391,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             errorData.error || "Failed to update reminder via API",
           );
         }
-        // Refetch manually to sync state
+        clearCatalogSessionCache();
         const refetchRes = await fetch("/api/reminder");
         if (refetchRes.ok) {
           setShortReads(await refetchRes.json());
@@ -1107,6 +1405,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const deleteShortRead = async (id: string): Promise<void> => {
     try {
       await deleteDoc(doc(db, "short_reads", id));
+      setShortReads((prev) => prev.filter((item) => item.id !== id));
+      clearCatalogSessionCache();
     } catch (err: any) {
       if (
         err.code === "permission-denied" ||
@@ -1122,7 +1422,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             errorData.error || "Failed to delete reminder via API",
           );
         }
-        // Refetch manually to sync state
+        clearCatalogSessionCache();
         const refetchRes = await fetch("/api/reminder");
         if (refetchRes.ok) {
           setShortReads(await refetchRes.json());
@@ -1142,16 +1442,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...banner,
       createdAt: serverTimestamp(),
     });
+    const newBanner: Banner = { ...(banner as any), id: docRef.id };
+    setBanners((prev) => [newBanner, ...prev.filter((b) => b.id !== docRef.id)]);
+    clearCatalogSessionCache();
     return docRef.id;
   };
 
   const updateBanner = async (banner: Banner): Promise<void> => {
     const { id, ...rest } = banner;
     await updateDoc(doc(db, "banners", id), rest as any);
+    setBanners((prev) => prev.map((b) => (b.id === id ? { ...b, ...banner } : b)));
+    clearCatalogSessionCache();
   };
 
   const deleteBanner = async (id: string): Promise<void> => {
     await deleteDoc(doc(db, "banners", id));
+    setBanners((prev) => prev.filter((b) => b.id !== id));
+    clearCatalogSessionCache();
   };
 
   return (
