@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useApp, Lesson } from '../../../../context/AppContext';
 import CommentsSection from '../../../../components/CommentsSection';
@@ -397,6 +397,7 @@ export default function LearningPortalPage() {
   const course = courses.find(c => c.id === courseId);
 
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const autoEnrollAttemptedRef = useRef<Set<string>>(new Set());
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isMediaFullscreen, setIsMediaFullscreen] = useState(false);
 
@@ -492,7 +493,9 @@ export default function LearningPortalPage() {
     );
     const isEnrolled = enrolledCourses.includes(course.id);
 
-    if (isFree && user && !isEnrolled) {
+    if (isFree && user && !isEnrolled && !autoEnrollAttemptedRef.current.has(course.id)) {
+      // Attempt once per course so a failed claim can never trigger a request loop
+      autoEnrollAttemptedRef.current.add(course.id);
       void enrollCourse(course.id);
     }
 
