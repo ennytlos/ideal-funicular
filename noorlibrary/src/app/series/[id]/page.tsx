@@ -98,6 +98,9 @@ export default function SeriesDetailsPage() {
       alert("Please purchase the series to read episodes.");
       return;
     }
+    if (isFree && !hasPurchased && user) {
+      void purchaseSeries(s.id);
+    }
     setActiveEpisode(ep);
   };
 
@@ -142,10 +145,19 @@ export default function SeriesDetailsPage() {
                 <span style={{ fontWeight: 600 }}>{s.episodes?.length || 0}</span>
               </div>
 
-              {hasPurchased || isFree ? (
+              {hasPurchased ? (
                 <div style={{ background: 'rgba(34, 197, 94, 0.1)', color: '#166534', padding: '0.75rem', borderRadius: '8px', textAlign: 'center', fontWeight: 600 }}>
-                  You have access!
+                  In Your Library ✓
                 </div>
+              ) : isFree ? (
+                <button
+                  onClick={handleFreeAccess}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '1rem' }}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? 'Saving...' : '+ Add Series to Library (Free)'}
+                </button>
               ) : (
                 <button
                   onClick={handlePurchase}
