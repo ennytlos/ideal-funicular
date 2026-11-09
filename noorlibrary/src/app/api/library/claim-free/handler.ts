@@ -53,10 +53,21 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      await userRef.set(
-        { purchasedBooks: FieldValue.arrayUnion(itemId) },
-        { merge: true },
-      );
+      await Promise.all([
+        userRef.set(
+          { purchasedBooks: FieldValue.arrayUnion(itemId) },
+          { merge: true },
+        ),
+        adminDb.collection('user_books').doc(`${uid}_${itemId}`).set(
+          {
+            userId: uid,
+            bookId: itemId,
+            claimedFree: true,
+            purchasedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        ),
+      ]);
 
       return NextResponse.json({
         success: true,
@@ -80,10 +91,21 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      await userRef.set(
-        { downloadedBooks: FieldValue.arrayUnion(itemId) },
-        { merge: true },
-      );
+      await Promise.all([
+        userRef.set(
+          { downloadedBooks: FieldValue.arrayUnion(itemId) },
+          { merge: true },
+        ),
+        adminDb.collection('user_downloads').doc(`${uid}_${itemId}`).set(
+          {
+            userId: uid,
+            bookId: itemId,
+            claimedFree: true,
+            downloadedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        ),
+      ]);
 
       return NextResponse.json({
         success: true,
@@ -100,18 +122,28 @@ export async function POST(request: NextRequest) {
       }
       const seriesData = seriesDoc.data()!;
       const price = Number(seriesData.price) || 0;
-      const isPaid = seriesData.isPaid ?? (price > 0);
-      if (price > 0 || isPaid) {
+      if (price > 0) {
         return NextResponse.json(
           { error: 'Cannot claim paid series without purchase' },
           { status: 403 },
         );
       }
 
-      await userRef.set(
-        { purchasedSeries: FieldValue.arrayUnion(itemId) },
-        { merge: true },
-      );
+      await Promise.all([
+        userRef.set(
+          { purchasedSeries: FieldValue.arrayUnion(itemId) },
+          { merge: true },
+        ),
+        adminDb.collection('user_series').doc(`${uid}_${itemId}`).set(
+          {
+            userId: uid,
+            seriesId: itemId,
+            claimedFree: true,
+            purchasedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        ),
+      ]);
 
       return NextResponse.json({
         success: true,
@@ -128,18 +160,29 @@ export async function POST(request: NextRequest) {
       }
       const courseData = courseDoc.data()!;
       const price = Number(courseData.price) || 0;
-      const isPaid = courseData.isPaid ?? (price > 0);
-      if (price > 0 || isPaid) {
+      // Note: courseData.isPaid indicates the creator's course slot is active/published, NOT that the course costs money!
+      if (price > 0) {
         return NextResponse.json(
           { error: 'Cannot enroll in paid course without purchase' },
           { status: 403 },
         );
       }
 
-      await userRef.set(
-        { enrolledCourses: FieldValue.arrayUnion(itemId) },
-        { merge: true },
-      );
+      await Promise.all([
+        userRef.set(
+          { enrolledCourses: FieldValue.arrayUnion(itemId) },
+          { merge: true },
+        ),
+        adminDb.collection('user_courses').doc(`${uid}_${itemId}`).set(
+          {
+            userId: uid,
+            courseId: itemId,
+            claimedFree: true,
+            enrolledAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        ),
+      ]);
 
       return NextResponse.json({
         success: true,
