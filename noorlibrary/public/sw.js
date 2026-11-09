@@ -1,5 +1,5 @@
-const CACHE_NAME = 'noor-static-cache-v1';
-const BOOKS_CACHE_NAME = 'noor-books-cache-v1';
+const CACHE_NAME = 'noor-static-cache-v2';
+const BOOKS_CACHE_NAME = 'noor-books-cache-v2';
 
 const STATIC_ASSETS = [
   '/',
@@ -33,12 +33,28 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event: Network-First falling back to Cache
+// Fetch Event: Network-First falling back to Cache (same-origin GET only)
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url);
 
-  // 1. Handle JSON books read APIs with Network-First and dynamic caching
+  // Never intercept non-GET requests (POST, PUT, DELETE, OPTIONS, etc.)
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return;
+  }
+
+  // Never intercept cross-origin requests (Firebase Auth, Firestore streams, Google OAuth, Bunny CDN, etc.)
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // 1. Handle JSON books read APIs with Network-First and dynamic offline caching
   if (url.pathname.startsWith('/api/read/')) {
     event.respondWith(
       fetch(request)
@@ -56,7 +72,6 @@ self.addEventListener('fetch', (event) => {
             if (cachedResponse) {
               return cachedResponse;
             }
-            // Return 503 Service Unavailable if no cache and network fails
             return new Response(
               JSON.stringify({ error: 'Service Unavailable' }),
               { status: 503, headers: { 'Content-Type': 'application/json' } }
@@ -67,75 +82,41 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Handle auth routes - bypass service worker, let browser handle them directly
-  if (url.pathname.includes('/auth/') || url.search.includes('auth=')) {
+  // 2. Bypass Service Worker for all other /api/ routes and auth routes so live data & sessions are never stale
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/__/auth/') ||
+    url.pathname.includes('/auth/') ||
+    url.search.includes('auth=')
+  ) {
     return;
   }
 
-  // 3. Handle API calls - Network-First with proper error handling
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Always return the response, whether it's success or error
-          return response;
-        })
-        .catch(() => {
-          // If network fails, try to get cached response
-          return caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            // Return 503 if no cache available
-            return new Response(
-              JSON.stringify({ error: 'Service Unavailable' }),
-              { status: 503, headers: { 'Content-Type': 'application/json' } }
-            );
-          });
-        })
-    );
-    return;
-  }
-
-  // 4. Handle static page / assets caching with Network-First strategy
-  if (request.method === 'GET') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          return caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            if (request.mode === 'navigate') {
-              return caches.match('/');
-            }
-            // Return 503 for any failed resource
-            return new Response(
-              'Service Unavailable',
-              { status: 503, headers: { 'Content-Type': 'text/plain' } }
-            );
-          });
-        })
-    );
-    return;
-  }
-
-  // 5. For non-GET requests (POST, PUT, DELETE, etc.), always use network
+  // 3. Handle static page / assets caching with Network-First strategy
   event.respondWith(
-    fetch(request).catch(() => {
-      return new Response(
-        JSON.stringify({ error: 'Network error - request failed' }),
-        { status: 503, headers: { 'Content-Type': 'application/json' } }
-      );
-    })
+    fetch(request)
+      .then((response) => {
+        if (response.status === 200) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        return caches.match(request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          if (request.mode === 'navigate') {
+            return caches.match('/');
+          }
+          return new Response(
+            'Service Unavailable',
+            { status: 503, headers: { 'Content-Type': 'text/plain' } }
+          );
+        });
+      })
   );
 });
