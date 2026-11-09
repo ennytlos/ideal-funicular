@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
           {
             userId: uid,
             bookId: itemId,
+            creatorId: bookData.creatorId || '',
             claimedFree: true,
             purchasedAt: FieldValue.serverTimestamp(),
           },
@@ -100,6 +101,7 @@ export async function POST(request: NextRequest) {
           {
             userId: uid,
             bookId: itemId,
+            creatorId: bookData.creatorId || '',
             claimedFree: true,
             downloadedAt: FieldValue.serverTimestamp(),
           },
@@ -138,6 +140,7 @@ export async function POST(request: NextRequest) {
           {
             userId: uid,
             seriesId: itemId,
+            creatorId: seriesData.creatorId || '',
             claimedFree: true,
             purchasedAt: FieldValue.serverTimestamp(),
           },
@@ -177,6 +180,7 @@ export async function POST(request: NextRequest) {
           {
             userId: uid,
             courseId: itemId,
+            creatorId: courseData.creatorId || '',
             claimedFree: true,
             enrolledAt: FieldValue.serverTimestamp(),
           },
