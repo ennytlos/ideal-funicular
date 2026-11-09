@@ -133,7 +133,8 @@ export default function AuthModal({ onClose }: AuthModalProps) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "1.5rem",
+        padding: "1rem",
+        overflowY: "auto",
         animation: "fadeIn 0.2s ease-out",
       }}
       onClick={onClose}
@@ -141,15 +142,17 @@ export default function AuthModal({ onClose }: AuthModalProps) {
       <div
         style={{
           width: "100%",
-          maxWidth: "440px",
+          maxWidth: "430px",
+          maxHeight: "calc(100dvh - 2rem)",
+          overflowY: "auto",
           background: "var(--bg-secondary)",
           border: "1px solid rgba(220, 38, 38, 0.3)",
           borderRadius: "var(--radius-lg)",
           boxShadow:
             "0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(220, 38, 38, 0.05)",
-          padding: "2.5rem",
+          padding: "1.5rem 1.75rem",
+          margin: "auto",
           position: "relative",
-          overflow: "hidden",
           animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
         }}
         onClick={(e) => e.stopPropagation()}
@@ -171,14 +174,15 @@ export default function AuthModal({ onClose }: AuthModalProps) {
           onClick={onClose}
           style={{
             position: "absolute",
-            top: "1.25rem",
-            right: "1.25rem",
+            top: "0.85rem",
+            right: "1rem",
             background: "transparent",
             color: "var(--text-muted)",
             cursor: "pointer",
             fontSize: "1.5rem",
+            lineHeight: 1,
           }}
-          onMouseOver={(e) => (e.currentTarget.style.color = "#fff")}
+          onMouseOver={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
           onMouseOut={(e) =>
             (e.currentTarget.style.color = "var(--text-muted)")
           }
@@ -187,7 +191,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
         </button>
 
         {success ? (
-          <div style={{ textAlign: "center", padding: "2rem 0" }}>
+          <div style={{ textAlign: "center", padding: "1.5rem 0" }}>
             <div
               style={{
                 width: "60px",
@@ -198,7 +202,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                margin: "0 auto 1.5rem auto",
+                margin: "0 auto 1.25rem auto",
                 border: "1px solid rgba(34, 197, 94, 0.3)",
               }}
             >
@@ -233,18 +237,18 @@ export default function AuthModal({ onClose }: AuthModalProps) {
         ) : (
           <>
             {/* Title */}
-            <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+            <div style={{ textAlign: "center", marginBottom: "1rem" }}>
               <h2
                 style={{
                   fontFamily: "Outfit",
-                  fontSize: "1.75rem",
-                  marginBottom: "0.5rem",
+                  fontSize: "1.5rem",
+                  marginBottom: "0.25rem",
                 }}
               >
                 Join <span style={{ color: "var(--accent-red)" }}>Noor</span>{" "}
                 Library
               </h2>
-              <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", margin: 0 }}>
                 Unlock access to authentic Islamic writings.
               </p>
             </div>
@@ -256,7 +260,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 background: "rgba(0,0,0,0.03)",
                 borderRadius: "var(--radius-md)",
                 padding: "4px",
-                marginBottom: "1.75rem",
+                marginBottom: "1rem",
                 border: "1px solid var(--border-color)",
               }}
             >
@@ -265,10 +269,11 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 return (
                   <button
                     key={label}
+                    type="button"
                     onClick={() => setIsLoginTab(i === 0)}
                     style={{
                       flex: 1,
-                      padding: "0.625rem",
+                      padding: "0.5rem",
                       fontFamily: "Outfit",
                       fontSize: "0.9rem",
                       fontWeight: 600,
@@ -278,7 +283,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                         ? "var(--accent-red-gradient)"
                         : "transparent",
                       color: active
-                        ? "var(--text-primary)"
+                        ? "#ffffff"
                         : "var(--text-secondary)",
                       transition: "all 0.2s ease",
                     }}
@@ -291,6 +296,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
 
             {/* Google Sign-In */}
             <button
+              type="button"
               onClick={handleGoogle}
               disabled={isSubmitting}
               style={{
@@ -299,7 +305,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "0.75rem",
-                padding: "0.75rem",
+                padding: "0.625rem 0.75rem",
                 background: "transparent",
                 border: "1px solid var(--border-color)",
                 borderRadius: "var(--radius-md)",
@@ -308,7 +314,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 fontWeight: 600,
                 fontSize: "0.9rem",
                 cursor: "pointer",
-                marginBottom: "1.25rem",
+                marginBottom: "0.85rem",
                 transition: "border-color 0.2s ease",
                 opacity: isSubmitting ? 0.6 : 1,
               }}
@@ -347,7 +353,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 display: "flex",
                 alignItems: "center",
                 gap: "1rem",
-                marginBottom: "1.25rem",
+                marginBottom: "0.85rem",
               }}
             >
               <div
@@ -376,10 +382,10 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                   backgroundColor: "rgba(239, 68, 68, 0.1)",
                   border: "1px solid rgba(239, 68, 68, 0.2)",
                   color: "#f87171",
-                  padding: "0.75rem 1rem",
+                  padding: "0.6rem 0.85rem",
                   borderRadius: "var(--radius-md)",
                   fontSize: "0.85rem",
-                  marginBottom: "1.25rem",
+                  marginBottom: "0.85rem",
                 }}
               >
                 {error}
@@ -392,45 +398,48 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: "1.25rem",
+                gap: "0.85rem",
               }}
             >
               {!isLoginTab && (
-                <div className="form-group">
-                  <label htmlFor="auth-name" className="form-label">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label htmlFor="auth-name" className="form-label" style={{ marginBottom: "0.35rem" }}>
                     Full Name
                   </label>
                   <input
                     id="auth-name"
                     type="text"
                     className="form-input"
+                    style={{ padding: "0.65rem 0.9rem" }}
                     placeholder="Enter your name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
                 </div>
               )}
-              <div className="form-group">
-                <label htmlFor="auth-email" className="form-label">
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label htmlFor="auth-email" className="form-label" style={{ marginBottom: "0.35rem" }}>
                   Email Address
                 </label>
                 <input
                   id="auth-email"
                   type="email"
                   className="form-input"
+                  style={{ padding: "0.65rem 0.9rem" }}
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="auth-password" className="form-label">
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label htmlFor="auth-password" className="form-label" style={{ marginBottom: "0.35rem" }}>
                   Password
                 </label>
                 <input
                   id="auth-password"
                   type="password"
                   className="form-input"
+                  style={{ padding: "0.65rem 0.9rem" }}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -443,7 +452,8 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                 disabled={isSubmitting}
                 style={{
                   width: "100%",
-                  marginTop: "0.5rem",
+                  marginTop: "0.25rem",
+                  padding: "0.65rem 1.25rem",
                   display: "flex",
                   justifyContent: "center",
                   opacity: isSubmitting ? 0.7 : 1,
@@ -461,7 +471,8 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                   textAlign: "center",
                   fontSize: "0.75rem",
                   color: "var(--text-muted)",
-                  marginTop: "0.75rem",
+                  marginTop: "0.25rem",
+                  marginBottom: 0,
                   lineHeight: "1.4",
                 }}
               >
