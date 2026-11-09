@@ -16,7 +16,7 @@ const ReaderModal = dynamic(() => import('../../components/ReaderModal'), {
 });
 
 export default function UserDashboard() {
-  const { user, books, series, courses, enrolledCourses, purchasedBooks, purchasedSeries, downloadedBooks, removePurchasedBook, removePurchasedSeries, removeEnrolledCourse, removeDownloadedBook, isLoading } = useApp();
+  const { user, logout, books, series, courses, enrolledCourses, purchasedBooks, purchasedSeries, downloadedBooks, removePurchasedBook, removePurchasedSeries, removeEnrolledCourse, removeDownloadedBook, isLoading } = useApp();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'library' | 'downloads' | 'series' | 'courses' | 'notifications' | 'messages' | 'role_status'>('library');
   const [selectedBookToRead, setSelectedBookToRead] = useState<Book | null>(null);
@@ -639,9 +639,7 @@ export default function UserDashboard() {
   const myLibrary = books.filter(
     b => purchasedBooks.includes(b.id) || isOwnContent(b.creatorId)
   );
-  const myDownloads = books.filter(
-    b => downloadedBooks.includes(b.id) || isOwnContent(b.creatorId)
-  );
+  const myDownloads = books.filter(b => downloadedBooks.includes(b.id));
   const mySeriesList = series.filter(
     s => purchasedSeries.includes(s.id) || isOwnContent(s.creatorId)
   );
@@ -765,9 +763,9 @@ export default function UserDashboard() {
           </li>
         </ul>
 
-        {/* Elevated Role Portal Shortcut if user is Creator, Society, or Admin */}
-        {(user.role === 'creator' || user.role === 'society' || user.role === 'admin') && (
-          <div className="admin-sidebar-footer">
+        {/* Sidebar Footer: Role Portal Shortcut + Sign Out */}
+        <div className="admin-sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+          {(user.role === 'creator' || user.role === 'society' || user.role === 'admin') && (
             <Link
               href="/admin"
               className="admin-tab-btn"
@@ -796,8 +794,40 @@ export default function UserDashboard() {
                 <path d="m12 5 7 7-7 7" />
               </svg>
             </Link>
-          </div>
-        )}
+          )}
+
+          <button
+            type="button"
+            onClick={async () => {
+              await logout();
+              router.push('/');
+            }}
+            className="admin-tab-btn"
+            style={{
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              color: 'var(--accent-red)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '0.88rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              width: '100%',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span>Sign Out</span>
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -828,6 +858,28 @@ export default function UserDashboard() {
             {activeTab === 'library' && (
               <button className="btn btn-primary" onClick={() => router.push('/books')}>+ Browse Catalog</button>
             )}
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={async () => {
+                await logout();
+                router.push('/');
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                borderColor: 'rgba(239, 68, 68, 0.35)',
+                color: 'var(--accent-red)',
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Sign Out
+            </button>
             {activeTab === 'series' && (
               <button className="btn btn-primary" onClick={() => router.push('/books')}>+ Explore Series</button>
             )}
