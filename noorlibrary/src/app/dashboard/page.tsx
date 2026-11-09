@@ -629,10 +629,25 @@ export default function UserDashboard() {
     setIsSocietyModalOpen(true);
   };
 
-  const myLibrary = books.filter(b => purchasedBooks.includes(b.id));
-  const myDownloads = books.filter(b => downloadedBooks.includes(b.id));
-  const mySeriesList = series.filter(s => purchasedSeries.includes(s.id));
-  const myCoursesList = courses.filter(c => enrolledCourses.includes(c.id));
+  const isOwnContent = (creatorId?: string) =>
+    Boolean(
+      user?.uid &&
+        creatorId &&
+        (creatorId === user.uid ||
+          (user.role === 'admin' && creatorId === 'admin'))
+    );
+  const myLibrary = books.filter(
+    b => purchasedBooks.includes(b.id) || isOwnContent(b.creatorId)
+  );
+  const myDownloads = books.filter(
+    b => downloadedBooks.includes(b.id) || isOwnContent(b.creatorId)
+  );
+  const mySeriesList = series.filter(
+    s => purchasedSeries.includes(s.id) || isOwnContent(s.creatorId)
+  );
+  const myCoursesList = courses.filter(
+    c => enrolledCourses.includes(c.id) || isOwnContent(c.creatorId)
+  );
   const unreadNotificationsCount = notifications.filter(n => !readNotifications.includes(n.id)).length;
 
   return (
