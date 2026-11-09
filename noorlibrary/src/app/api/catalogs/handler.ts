@@ -7,12 +7,13 @@ import { adminDb } from '../../../lib/firebase-admin';
 
 export async function GET(request: NextRequest) {
   try {
+    const isFresh = request.nextUrl.searchParams.get('fresh') === '1';
     const [booksSnap, seriesSnap, coursesSnap, shortReadsSnap, bannersSnap, mobileHeroSnap] = await Promise.all([
-      adminDb.collection('books').limit(48).get(),
-      adminDb.collection('series').limit(24).get(),
-      adminDb.collection('courses').limit(24).get(),
-      adminDb.collection('short_reads').limit(20).get(),
-      adminDb.collection('banners').limit(10).get(),
+      adminDb.collection('books').limit(200).get(),
+      adminDb.collection('series').limit(200).get(),
+      adminDb.collection('courses').limit(200).get(),
+      adminDb.collection('short_reads').limit(50).get(),
+      adminDb.collection('banners').limit(20).get(),
       adminDb.collection('app_config').doc('mobile_hero').get(),
     ]);
 
@@ -26,14 +27,17 @@ export async function GET(request: NextRequest) {
         coverUrl: data.coverUrl || '',
         pdfUrl: data.pdfUrl || '',
         pdfPath: data.pdfPath || '',
+        jsonPath: data.jsonPath || '',
         category: data.category || '',
         language: data.language || '',
         price: Number(data.price) || 0,
         downloadPrice: Number(data.downloadPrice) || 0,
         pages: Number(data.pages) || 0,
         contentType: data.contentType || 'pdf',
+        isPublished: data.isPublished !== false,
         isSecure: data.isSecure !== false,
         paymentInterval: data.paymentInterval || 'once',
+        creatorId: data.creatorId || data.authorId || '',
         createdAt: typeof data.createdAt?.toMillis === 'function'
           ? data.createdAt.toMillis()
           : (typeof data.createdAt === 'number' ? data.createdAt : 0),
@@ -51,6 +55,8 @@ export async function GET(request: NextRequest) {
         coverUrl: data.coverUrl || '',
         price: Number(data.price) || 0,
         isPaid: data.isPaid ?? false,
+        isPublished: data.isPublished !== false,
+        creatorId: data.creatorId || data.authorId || '',
         episodes: data.episodes || [],
         createdAt: typeof data.createdAt?.toMillis === 'function'
           ? data.createdAt.toMillis()
@@ -70,8 +76,16 @@ export async function GET(request: NextRequest) {
         price: Number(data.price) || 0,
         isPaid: data.isPaid ?? false,
         isPublished: data.isPublished !== false,
-        creatorId: data.creatorId || '',
+        creatorId: data.creatorId || data.authorId || data.instructorId || '',
         lessons: data.lessons || [],
+        attachmentPath: data.attachmentPath || '',
+        attachmentName: data.attachmentName || '',
+        paymentInterval: data.paymentInterval || 'once',
+        paymentStatus: data.paymentStatus || 'paid',
+        maxContentSize: Number(data.maxContentSize) || 52428800,
+        currentContentSize: Number(data.currentContentSize) || 0,
+        coverSize: Number(data.coverSize) || 0,
+        attachmentSize: Number(data.attachmentSize) || 0,
         createdAt: typeof data.createdAt?.toMillis === 'function'
           ? data.createdAt.toMillis()
           : (typeof data.createdAt === 'number' ? data.createdAt : 0),
@@ -122,10 +136,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { books, series, courses, shortReads, banners, mobileHero },
       {
-        headers: {
-          'Cache-Control': 'public, s-maxage=180, stale-while-revalidate=600',
-          'CDN-Cache-Control': 'public, s-maxage=300',
-        },
+        headers: isFresh
+          ? { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+          : {
+              'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=60',
+              'CDN-Cache-Control': 'public, s-maxage=15',
+            },
       },
     );
   } catch (error: any) {
