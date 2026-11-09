@@ -9,14 +9,47 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ onClose }: AuthModalProps) {
-  const { login, loginWithGoogle, register } = useApp();
+  const { login, loginWithGoogle, register, resetPassword } = useApp();
   const [isLoginTab, setIsLoginTab] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setResetSent(false);
+
+    if (!email.trim()) {
+      setError("Please enter your email address to receive a password reset link.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await resetPassword(email);
+      setResetSent(true);
+    } catch (err: any) {
+      const code = err?.code || "";
+      const msg = err?.message || "";
+      if (code === "auth/invalid-email" || msg.includes("invalid-email")) {
+        setError("Please enter a valid email address.");
+      } else if (code === "auth/user-not-found" || msg.includes("user-not-found")) {
+        setError("No account found with this email address.");
+      } else if (code === "auth/too-many-requests" || msg.includes("too-many-requests")) {
+        setError("Too many requests. Please wait a moment and try again.");
+      } else {
+        setError("Could not send password reset email. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -265,12 +298,17 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               }}
             >
               {(["Sign In", "Register"] as const).map((label, i) => {
-                const active = i === 0 ? isLoginTab : !isLoginTab;
+                const active = !isForgotPassword && (i === 0 ? isLoginTab : !isLoginTab);
                 return (
                   <button
                     key={label}
                     type="button"
-                    onClick={() => setIsLoginTab(i === 0)}
+                    onClick={() => {
+                      setIsLoginTab(i === 0);
+                      setIsForgotPassword(false);
+                      setResetSent(false);
+                      setError("");
+                    }}
                     style={{
                       flex: 1,
                       padding: "0.5rem",
@@ -392,104 +430,208 @@ export default function AuthModal({ onClose }: AuthModalProps) {
               </div>
             )}
 
-            {/* Form */}
-            <form
-              onSubmit={handleSubmit}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.85rem",
-              }}
-            >
-              {!isLoginTab && (
+            {/* Reset Email Sent Banner */}
+            {isForgotPassword && resetSent && (
+              <div
+                style={{
+                  backgroundColor: "rgba(34, 197, 94, 0.12)",
+                  border: "1px solid rgba(34, 197, 94, 0.3)",
+                  color: "#22c55e",
+                  padding: "0.7rem 0.9rem",
+                  borderRadius: "var(--radius-md)",
+                  fontSize: "0.85rem",
+                  marginBottom: "0.85rem",
+                  lineHeight: 1.45,
+                }}
+              >
+                Password reset link sent to <strong>{email}</strong>! Please check your inbox (and spam folder).
+              </div>
+            )}
+
+            {isForgotPassword ? (
+              <form
+                onSubmit={handleForgotPassword}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.85rem",
+                }}
+              >
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="auth-name" className="form-label" style={{ marginBottom: "0.35rem" }}>
-                    Full Name
+                  <label htmlFor="auth-reset-email" className="form-label" style={{ marginBottom: "0.35rem" }}>
+                    Account Email Address
                   </label>
                   <input
-                    id="auth-name"
-                    type="text"
+                    id="auth-reset-email"
+                    type="email"
                     className="form-input"
                     style={{ padding: "0.65rem 0.9rem" }}
-                    placeholder="Enter your name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
-              )}
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label htmlFor="auth-email" className="form-label" style={{ marginBottom: "0.35rem" }}>
-                  Email Address
-                </label>
-                <input
-                  id="auth-email"
-                  type="email"
-                  className="form-input"
-                  style={{ padding: "0.65rem 0.9rem" }}
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label htmlFor="auth-password" className="form-label" style={{ marginBottom: "0.35rem" }}>
-                  Password
-                </label>
-                <input
-                  id="auth-password"
-                  type="password"
-                  className="form-input"
-                  style={{ padding: "0.65rem 0.9rem" }}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
 
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={isSubmitting}
-                style={{
-                  width: "100%",
-                  marginTop: "0.25rem",
-                  padding: "0.65rem 1.25rem",
-                  display: "flex",
-                  justifyContent: "center",
-                  opacity: isSubmitting ? 0.7 : 1,
-                }}
-              >
-                {isSubmitting
-                  ? "Please wait..."
-                  : isLoginTab
-                    ? "Sign In"
-                    : "Create Account"}
-              </button>
-
-              <p
-                style={{
-                  textAlign: "center",
-                  fontSize: "0.75rem",
-                  color: "var(--text-muted)",
-                  marginTop: "0.25rem",
-                  marginBottom: 0,
-                  lineHeight: "1.4",
-                }}
-              >
-                By continuing, you agree to our{" "}
-                <Link
-                  href="/privacy"
-                  onClick={onClose}
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSubmitting}
                   style={{
-                    color: "var(--gold-main)",
-                    textDecoration: "underline",
+                    width: "100%",
+                    marginTop: "0.25rem",
+                    padding: "0.65rem 1.25rem",
+                    display: "flex",
+                    justifyContent: "center",
+                    opacity: isSubmitting ? 0.7 : 1,
                   }}
                 >
-                  Privacy Policy
-                </Link>{" "}
-                & Terms.
-              </p>
-            </form>
+                  {isSubmitting ? "Sending Reset Link..." : "Send Password Reset Link"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPassword(false);
+                    setResetSent(false);
+                    setError("");
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-secondary)",
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    padding: "0.35rem",
+                    textAlign: "center",
+                  }}
+                >
+                  &larr; Back to Sign In
+                </button>
+              </form>
+            ) : (
+              /* Form */
+              <form
+                onSubmit={handleSubmit}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.85rem",
+                }}
+              >
+                {!isLoginTab && (
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label htmlFor="auth-name" className="form-label" style={{ marginBottom: "0.35rem" }}>
+                      Full Name
+                    </label>
+                    <input
+                      id="auth-name"
+                      type="text"
+                      className="form-input"
+                      style={{ padding: "0.65rem 0.9rem" }}
+                      placeholder="Enter your name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+                )}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label htmlFor="auth-email" className="form-label" style={{ marginBottom: "0.35rem" }}>
+                    Email Address
+                  </label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    className="form-input"
+                    style={{ padding: "0.65rem 0.9rem" }}
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+                    <label htmlFor="auth-password" className="form-label" style={{ marginBottom: 0 }}>
+                      Password
+                    </label>
+                    {isLoginTab && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsForgotPassword(true);
+                          setResetSent(false);
+                          setError("");
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          padding: 0,
+                          color: "var(--accent-red)",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    className="form-input"
+                    style={{ padding: "0.65rem 0.9rem" }}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSubmitting}
+                  style={{
+                    width: "100%",
+                    marginTop: "0.25rem",
+                    padding: "0.65rem 1.25rem",
+                    display: "flex",
+                    justifyContent: "center",
+                    opacity: isSubmitting ? 0.7 : 1,
+                  }}
+                >
+                  {isSubmitting
+                    ? "Please wait..."
+                    : isLoginTab
+                      ? "Sign In"
+                      : "Create Account"}
+                </button>
+
+                <p
+                  style={{
+                    textAlign: "center",
+                    fontSize: "0.75rem",
+                    color: "var(--text-muted)",
+                    marginTop: "0.25rem",
+                    marginBottom: 0,
+                    lineHeight: "1.4",
+                  }}
+                >
+                  By continuing, you agree to our{" "}
+                  <Link
+                    href="/privacy"
+                    onClick={onClose}
+                    style={{
+                      color: "var(--gold-main)",
+                      textDecoration: "underline",
+                    }}
+                  >
+                    Privacy Policy
+                  </Link>{" "}
+                  & Terms.
+                </p>
+              </form>
+            )}
           </>
         )}
       </div>
