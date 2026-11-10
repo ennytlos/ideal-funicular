@@ -1451,7 +1451,7 @@ export default function UserDashboard() {
                   </div>
                 </div>
                 <div>
-                  {user.role === 'creator' ? (
+                  {(user.role === 'creator' || creatorRequest?.status === 'approved') ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent-gold)', border: '1px solid var(--accent-gold)', padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700 }}>
                       ✓ Approved Creator
                     </span>
@@ -1491,7 +1491,7 @@ export default function UserDashboard() {
               </div>
 
               <div style={{ marginTop: 'auto' }}>
-                {user.role === 'creator' ? (
+                {(user.role === 'creator' || creatorRequest?.status === 'approved') ? (
                   <Link href="/admin" className="btn btn-primary" style={{ width: '100%', textAlign: 'center', display: 'block', textDecoration: 'none' }}>
                     Open Creator Studio ⚡
                   </Link>
@@ -1585,7 +1585,7 @@ export default function UserDashboard() {
                   </div>
                 ) : (
                   <div>
-                    <button onClick={openSocietyModal} className="btn btn-secondary" style={{ width: '100%', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' }}>
+                    <button disabled onClick={openSocietyModal} className="btn btn-secondary" style={{ width: '100%', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)', opacity: 0.5, cursor: 'not-allowed' }}>
                       {societyRequest?.status === 'rejected' ? 'Re-Apply for Society Registration' : 'Register an Islamic Society'}
                     </button>
                     {societyRequest?.status === 'rejected' && (
