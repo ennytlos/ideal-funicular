@@ -498,22 +498,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               },
         );
 
-        // Sync session cookie and build full user profile in parallel
-        await Promise.allSettled([
-          syncSessionCookie(firebaseUser),
-          buildUser(firebaseUser).then((appUser) => {
-            setUser((prev) => ({
-              ...appUser,
-              role:
-                appUser.role !== "user"
-                  ? appUser.role
-                  : prev?.role && prev.role !== "user"
-                  ? prev.role
-                  : "user",
-              subscriptions: prev?.subscriptions,
-            }));
-          }),
-        ]);
+        // Sync session cookie in background so it never blocks dashboard/admin loading
+        syncSessionCookie(firebaseUser);
+
+        // Build full user profile (role + displayName) before clearing isLoading
+        await buildUser(firebaseUser).then((appUser) => {
+          setUser((prev) => ({
+            ...appUser,
+            role:
+              appUser.role !== "user"
+                ? appUser.role
+                : prev?.role && prev.role !== "user"
+                ? prev.role
+                : "user",
+            subscriptions: prev?.subscriptions,
+          }));
+        });
 
         // Live-listen to the user's profile and purchased/downloaded items
         const userRef = doc(db, "users", firebaseUser.uid);
