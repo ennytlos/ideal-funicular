@@ -70,7 +70,7 @@ export default function UserDashboard() {
 
   // Live listen to creator requests status
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
     const requestRef = doc(db, 'creator_requests', user.uid);
     const unsubscribe = onSnapshot(requestRef, (snap) => {
       if (snap.exists()) {
@@ -85,11 +85,11 @@ export default function UserDashboard() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid]);
 
   // Live listen to society requests status
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
     const requestRef = doc(db, 'society_requests', user.uid);
     const unsubscribe = onSnapshot(requestRef, (snap) => {
       if (snap.exists()) {
@@ -104,33 +104,33 @@ export default function UserDashboard() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid]);
 
   // Listen to followed creators
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
     const q = query(collection(db, 'follows'), where('userId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ids = snapshot.docs.map(doc => doc.data().creatorId);
       setFollowedCreatorIds(ids);
     }, (err) => console.error("Follow listen error:", err));
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid]);
 
   // Listen to readNotifications list from subcollection
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
     const readRef = collection(db, 'notifications', user.uid, 'read');
     const unsubscribe = onSnapshot(readRef, (snapshot) => {
       const ids = snapshot.docs.map(doc => doc.id);
       setReadNotifications(ids);
     }, (err) => console.error("Read notifications subcollection listen error:", err));
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid]);
 
   // Listen to notifications — scoped to this user's relevant targetIds only
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
 
     // Build the list of targetIds this user cares about
     const myTargetIds = [user.uid, 'all_users', 'global', 'all'];
@@ -149,34 +149,34 @@ export default function UserDashboard() {
     }, (err) => console.error('Notifications query error:', err));
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid, user?.role]);
 
   // Mark notifications read on tab enter
   useEffect(() => {
-    if (activeTab === 'notifications' && user && notifications.length > 0) {
+    if (activeTab === 'notifications' && user?.uid && notifications.length > 0) {
       const unreadIds = notifications.map(n => n.id).filter(id => !readNotifications.includes(id));
       unreadIds.forEach((id) => {
         const docRef = doc(db, 'notifications', user.uid, 'read', id);
         setDoc(docRef, { readAt: Date.now() }, { merge: true }).catch(console.error);
       });
     }
-  }, [activeTab, user, notifications, readNotifications]);
+  }, [activeTab, user?.uid, notifications, readNotifications]);
 
   // Listen to inbox messages — two flat listeners merged via state (avoids nested onSnapshot leak)
   const [sentMessages, setSentMessages] = useState<any[]>([]);
   const [receivedMessages, setReceivedMessages] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
     const q = query(collection(db, 'messages'), where('senderId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (snap) => {
       setSentMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as any)));
     }, (err) => console.error('Sent messages error:', err));
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
     const recipientIds = [user.uid, 'all_users'];
     if (user.role === 'creator') recipientIds.push('all_creators');
     if (user.role === 'admin') recipientIds.push('admin');
@@ -185,7 +185,7 @@ export default function UserDashboard() {
       setReceivedMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as any)));
     }, (err) => console.error('Received messages error:', err));
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid, user?.role]);
 
   // Merge + deduplicate sent and received messages
   const messages = useMemo(() => {
