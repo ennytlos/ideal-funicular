@@ -161,18 +161,18 @@ export default function AdminDashboard() {
 
   // Fetch list of all registered users (admin only)
   useEffect(() => {
-    if (!user || user.role !== 'admin') return;
+    if (!user?.uid || user.role !== 'admin') return;
     const unsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
       const fetched = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       fetched.sort((a, b) => (a.email || '').localeCompare(b.email || ''));
       setAllUsersList(fetched);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid, user?.role]);
 
   // Listen to content reports (admin only)
   useEffect(() => {
-    if (!user || user.role !== 'admin') return;
+    if (!user?.uid || user.role !== 'admin') return;
     const q = query(collection(db, 'reports'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setReports(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -182,7 +182,7 @@ export default function AdminDashboard() {
       setLoadingReports(false);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid, user?.role]);
 
   // Listen to inbox messages (admin, creator, and society) — flat pair avoids nested onSnapshot leak
   const [inboxMessages, setInboxMessages] = useState<any[]>([]);
@@ -193,16 +193,16 @@ export default function AdminDashboard() {
   const [isSendingSocietyDm, setIsSendingSocietyDm] = useState(false);
 
   useEffect(() => {
-    if (!user || (user.role !== 'creator' && user.role !== 'admin' && user.role !== 'society')) return;
+    if (!user?.uid || (user.role !== 'creator' && user.role !== 'admin' && user.role !== 'society')) return;
     const q = query(collection(db, 'messages'), where('senderId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (snap) => {
       setAdminSentMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as any)));
     }, (err) => console.error('Admin sent messages error:', err));
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid, user?.role]);
 
   useEffect(() => {
-    if (!user || (user.role !== 'creator' && user.role !== 'admin' && user.role !== 'society')) return;
+    if (!user?.uid || (user.role !== 'creator' && user.role !== 'admin' && user.role !== 'society')) return;
     const recipientIds = [user.uid];
     if (user.role === 'creator') recipientIds.push('all_creators');
     if (user.role === 'society') recipientIds.push('all_societies');
@@ -212,7 +212,7 @@ export default function AdminDashboard() {
       setAdminReceivedMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as any)));
     }, (err) => console.error('Admin received messages error:', err));
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid, user?.role]);
 
   // Merge + deduplicate
   const adminMergedMessages = useMemo(() => {
@@ -290,7 +290,7 @@ export default function AdminDashboard() {
 
   // Listen to media (admin or creator scope)
   useEffect(() => {
-    if (!user || (user.role !== 'creator' && user.role !== 'admin')) return;
+    if (!user?.uid || (user.role !== 'creator' && user.role !== 'admin')) return;
     const q = query(collection(db, 'media'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
@@ -300,7 +300,7 @@ export default function AdminDashboard() {
       setMediaList(filtered);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.uid, user?.role]);
 
 
 
