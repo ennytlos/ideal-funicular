@@ -776,7 +776,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               timestamp: Date.now(),
             }));
           } catch {}
-          return;
+          return true;
         }
       } catch (err: any) {
         console.warn('Failed to load edge-cached catalogs, falling back to direct query:', err.message);
@@ -790,83 +790,92 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (Array.isArray(data)) setBooks(data);
         }
       } catch {}
+      return false;
     };
 
-    loadCatalogs();
+    let unsubBooks: (() => void) | null = null;
+    let unsubSeries: (() => void) | null = null;
+    let unsubCourses: (() => void) | null = null;
+    let unsubShortReads: (() => void) | null = null;
+    let unsubBanners: (() => void) | null = null;
 
-    // 4. Live Firestore listeners so added/edited books, courses, series, reminders & banners stay in real-time sync
-    const unsubBooks = onSnapshot(
-      collection(db, "books"),
-      (snap) => {
-        if (!isMounted || snap.empty) return;
-        const list = snap.docs
-          .map((d) => ({ ...(d.data() as Omit<Book, "id">), id: d.id }))
-          .filter((b: any) => b.isPublished !== false);
-        setBooks(list);
-        clearCatalogSessionCache();
-      },
-      (err) => console.warn("Books live listener warning:", err.message),
-    );
+    loadCatalogs().then((edgeLoaded) => {
+      if (!isMounted || edgeLoaded) return;
 
-    const unsubSeries = onSnapshot(
-      collection(db, "series"),
-      (snap) => {
-        if (!isMounted || snap.empty) return;
-        const list = snap.docs
-          .map((d) => ({ ...(d.data() as Omit<Series, "id">), id: d.id }))
-          .filter((s: any) => s.isPublished !== false);
-        setSeries(list);
-        clearCatalogSessionCache();
-      },
-      (err) => console.warn("Series live listener warning:", err.message),
-    );
+      // 4. Fallback live Firestore listeners only when edge /api/catalogs was unavailable
+      unsubBooks = onSnapshot(
+        collection(db, "books"),
+        (snap) => {
+          if (!isMounted || snap.empty) return;
+          const list = snap.docs
+            .map((d) => ({ ...(d.data() as Omit<Book, "id">), id: d.id }))
+            .filter((b: any) => b.isPublished !== false);
+          setBooks(list);
+          clearCatalogSessionCache();
+        },
+        (err) => console.warn("Books live listener warning:", err.message),
+      );
 
-    const unsubCourses = onSnapshot(
-      collection(db, "courses"),
-      (snap) => {
-        if (!isMounted || snap.empty) return;
-        const list = snap.docs
-          .map((d) => ({ ...(d.data() as Omit<Course, "id">), id: d.id }))
-          .filter((c: any) => c.isPublished !== false);
-        setCourses(list);
-        clearCatalogSessionCache();
-      },
-      (err) => console.warn("Courses live listener warning:", err.message),
-    );
+      unsubSeries = onSnapshot(
+        collection(db, "series"),
+        (snap) => {
+          if (!isMounted || snap.empty) return;
+          const list = snap.docs
+            .map((d) => ({ ...(d.data() as Omit<Series, "id">), id: d.id }))
+            .filter((s: any) => s.isPublished !== false);
+          setSeries(list);
+          clearCatalogSessionCache();
+        },
+        (err) => console.warn("Series live listener warning:", err.message),
+      );
 
-    const unsubShortReads = onSnapshot(
-      collection(db, "short_reads"),
-      (snap) => {
-        if (!isMounted || snap.empty) return;
-        const list = snap.docs
-          .map((d) => ({ ...(d.data() as Omit<ShortRead, "id">), id: d.id }))
-          .filter((sr: any) => sr.isPublished !== false);
-        setShortReads(list);
-        clearCatalogSessionCache();
-      },
-      (err) => console.warn("ShortReads live listener warning:", err.message),
-    );
+      unsubCourses = onSnapshot(
+        collection(db, "courses"),
+        (snap) => {
+          if (!isMounted || snap.empty) return;
+          const list = snap.docs
+            .map((d) => ({ ...(d.data() as Omit<Course, "id">), id: d.id }))
+            .filter((c: any) => c.isPublished !== false);
+          setCourses(list);
+          clearCatalogSessionCache();
+        },
+        (err) => console.warn("Courses live listener warning:", err.message),
+      );
 
-    const unsubBanners = onSnapshot(
-      collection(db, "banners"),
-      (snap) => {
-        if (!isMounted) return;
-        const list = snap.docs.map((d) => ({
-          ...(d.data() as Omit<Banner, "id">),
-          id: d.id,
-        }));
-        if (list.length > 0) setBanners(list);
-      },
-      (err) => console.warn("Banners live listener warning:", err.message),
-    );
+      unsubShortReads = onSnapshot(
+        collection(db, "short_reads"),
+        (snap) => {
+          if (!isMounted || snap.empty) return;
+          const list = snap.docs
+            .map((d) => ({ ...(d.data() as Omit<ShortRead, "id">), id: d.id }))
+            .filter((sr: any) => sr.isPublished !== false);
+          setShortReads(list);
+          clearCatalogSessionCache();
+        },
+        (err) => console.warn("ShortReads live listener warning:", err.message),
+      );
+
+      unsubBanners = onSnapshot(
+        collection(db, "banners"),
+        (snap) => {
+          if (!isMounted) return;
+          const list = snap.docs.map((d) => ({
+            ...(d.data() as Omit<Banner, "id">),
+            id: d.id,
+          }));
+          if (list.length > 0) setBanners(list);
+        },
+        (err) => console.warn("Banners live listener warning:", err.message),
+      );
+    });
 
     return () => {
       isMounted = false;
-      unsubBooks();
-      unsubSeries();
-      unsubCourses();
-      unsubShortReads();
-      unsubBanners();
+      unsubBooks?.();
+      unsubSeries?.();
+      unsubCourses?.();
+      unsubShortReads?.();
+      unsubBanners?.();
     };
   }, []);
 
