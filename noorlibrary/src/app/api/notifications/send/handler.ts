@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
     const cronSecret = process.env.CRON_SECRET || 'noor-cron-secret-2026';
 
     let isAuthorized = false;
+    let senderRole: 'admin' | 'creator' | 'society' | 'cron' = 'admin';
     let adminUid = 'admin';
     let adminName = 'Noor Admin';
 
@@ -120,16 +121,21 @@ export async function POST(request: NextRequest) {
       request.headers.get('x-cron-secret') === cronSecret
     ) {
       isAuthorized = true;
+      senderRole = 'cron';
     } else {
       const token = getAuthToken(request);
       if (token) {
         try {
           const decoded = await adminAuth.verifyIdToken(token);
           const userDoc = await adminDb.collection('users').doc(decoded.uid).get();
-          if (userDoc.exists && userDoc.data()?.role === 'admin') {
+          const role = userDoc.data()?.role;
+          if (userDoc.exists && (role === 'admin' || role === 'creator' || role === 'society')) {
             isAuthorized = true;
+            senderRole = role;
             adminUid = decoded.uid;
-            adminName = userDoc.data()?.displayName || 'Noor Admin';
+            adminName =
+              userDoc.data()?.displayName ||
+              (role === 'admin' ? 'Noor Admin' : role === 'creator' ? 'Verified Creator' : 'Islamic Society');
           }
         } catch {
           // Token invalid
@@ -147,13 +153,38 @@ export async function POST(request: NextRequest) {
       message,
       body: bodyParam,
       targetType = 'all', // 'all' | 'creators' | 'societies' | 'specific'
-      targetUid,
+      targetUid: rawTargetUid,
+      targetUidOrEmail,
       deepLink,
       data = {},
       sendPush = true,
       saveInApp = true,
       testPushToken,
     } = body;
+
+    // Non-admins (creators / societies) can only target 'specific' users or 'all' learners (never admin-only role groups or arbitrary test tokens)
+    if (senderRole !== 'admin' && senderRole !== 'cron') {
+      if (testPushToken || targetType === 'creators' || targetType === 'societies') {
+        return NextResponse.json(
+          { error: 'Only administrators can target role groups or raw test tokens.' },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Resolve email -> UID if targetUidOrEmail was passed for 'specific' targeting
+    let targetUid: string | undefined = rawTargetUid || targetUidOrEmail;
+    if (targetType === 'specific' && targetUid && targetUid.includes('@')) {
+      const emailSnap = await adminDb
+        .collection('users')
+        .where('email', '==', targetUid.trim().toLowerCase())
+        .limit(1)
+        .get()
+        .catch(() => null);
+      if (emailSnap && !emailSnap.empty) {
+        targetUid = emailSnap.docs[0].id;
+      }
+    }
 
     const messageContent = message || bodyParam;
     if (!title || !messageContent) {
