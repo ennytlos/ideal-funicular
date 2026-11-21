@@ -139,8 +139,8 @@ export async function GET(request: NextRequest) {
         headers: isFresh
           ? { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
           : {
-              'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=60',
-              'CDN-Cache-Control': 'public, s-maxage=15',
+              'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900',
+              'CDN-Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900',
             },
       },
     );
